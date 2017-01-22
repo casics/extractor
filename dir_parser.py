@@ -283,6 +283,8 @@ def extract_text(filename, encoding='utf-8'):
             elif ext in ['.textile']:
                 html = textile.textile(file.read())
                 return convert_html(html)
+            else:
+                import ipdb; ipdb.set_trace()
             # FIXME missing .rdoc, .pod, .wiki, .mediawiki, .creole
     except UnicodeDecodeError:
         # File does not contain UTF-8 bytes.  Try guessing actual encoding.
@@ -402,22 +404,6 @@ def is_url(text):
 
 def omit_common_extra_characters(s):
     return s.sub('[0-9!_-+=@ ]', '')
-
-
-def clean_text(seq):
-    # Compress multiple blank lines into one.
-    text = re.sub(r'\n+', '\n', seq)
-    # Split the text into sentences.
-    text = nltk.tokenize.sent_tokenize(text)
-    # Tokenize each sentence
-    text = [nltk.word_tokenize(sent) for sent in text]
-    # Remove terms that have no alphanumeric characters.
-    sentences = []
-    for sent in text:
-        sentences.append([word for word in sent if re.search(r'\w', word)])
-    # Remove quote characters within strings.
-    # text = [re.sub('["`\']', '', word) for word in text]
-    return sentences
 
 
 # Quick test driver.
