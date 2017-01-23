@@ -139,6 +139,10 @@ _extreme_max_file_size = 5*1024*1024
 # .............................................................................
 
 def dir_elements(path):
+    def file_dict(filename, body, code_lang, text_lang):
+        return {'name': filename, 'type': 'file', 'body': body,
+                'text_language': text_lang, 'code_language': code_lang}
+
     if not os.path.isdir(path):
         raise ValueError('Not a directory: {}'.format(path))
     # Recursive directory walker.
@@ -151,30 +155,25 @@ def dir_elements(path):
         contents = []
         for file in files:
             if empty_file(file):
-                item = {'name': file, 'type': 'file', 'body': '',
-                        'text_language': None, 'code_language': None}
+                item = file_dict(file, '', None, None)
             elif ignorable_file(file):
-                item = {'name': file, 'type': 'file', 'body': None,
-                        'text_language': None, 'code_language': None}
+                item = file_dict(file, None, None, None)
             elif python_file(file):
                 elements = file_elements(file)
                 lang = 'en'
                 if elements:
                     chunks = [elements['header']] + elements['comments']
                     lang = majority_language(chunks)
-                item = {'name': file, 'type': 'file', 'body': elements,
-                        'code_language': 'Python', 'text_language': lang}
+                item = file_dict(file, elements, 'Python', lang)
             elif text_file(file):
                 if excessively_large_file(file):
-                    item = {'name': file, 'type': 'file', 'body': None}
+                    item = file_dict(file, None, None, None)
                 else:
                     text = extract_text(file)
                     lang = human_language(text)
-                    item = {'name': file, 'type': 'file', 'body': text,
-                            'text_language': lang, 'code_language': None}
+                    item = file_dict(file, text, None, lang)
             else:
-                item = {'name': file, 'type': 'file', 'body': None,
-                        'text_language': None, 'code_language': None}
+                item = file_dict(file, None, None, None)
             contents.append(item)
         for dir in subdirs:
             contents.append(dir_elements(dir))
