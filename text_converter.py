@@ -38,12 +38,14 @@ from   tokenize import tokenize, COMMENT, STRING, NAME
 import unicodedata
 
 sys.path.append('../database')
+sys.path.append('../detector')
 sys.path.append('../cataloguer')
 sys.path.append('../common')
 
 import constants
 from utils import *
 from content_inferencer import *
+from human_language import *
 
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
@@ -117,6 +119,9 @@ def tokenize_text(seq):
 # .............................................................................
 
 def convert_plain_text(text):
+    # Don't bother if it's not written in English.
+    if human_language(text) != 'en':
+        return text
     # Remove URLs.
     text = re.sub(constants.url_regex, ' ', text)
     # Remove obvious divider lines, like lines of dashes.
@@ -168,13 +173,22 @@ def convert_rtf_file(in_file):
 # and the individual cases, may be correct), but it's a problem for feeding
 # this to natural language parsers that try to segment the text into
 # sentences.  The purpose of convert_html() is to adds missing punctuation
-# that will hopefully help NTLK sentence parsers.
+# and do other cleanup that will hopefully help NTLK sentence parsers.
 
 def convert_html(html):
-    # Use BeautifulSoup's API to modify the text of some elements, so that
-    # the result is more easily parsed into sentences by later tools.
-
+    '''Use BeautifulSoup's API to modify the text of some elements, so that
+    the result is more easily parsed into sentences by later tools.
+    '''
     soup = bs4.BeautifulSoup(html, 'lxml')
+
+    # If the input is not in English, we're not going to do NL processing on
+    # it anyway and we can skip the rest of this process.  For speed, this
+    # check only considers the first few paragraphs.
+    paragraphs = soup.find_all('p')
+    p_text = ''.join(p.text for p in paragraphs[1:3])
+    if p_text and human_language(p_text) != 'en':
+        return unsoupify(soup)
+
     for ignorable in ['pre', 'img']:
         for el in soup.find_all(ignorable):
             # Ignore stuff we can't convert to sentences
@@ -208,6 +222,12 @@ def convert_html(html):
             elif li.string and not li.string.rstrip().endswith(('.', ',', ':', ';')):
                 li.append(',')
 
+    # Return a single text string.
+    return unsoupify(soup)
+
+
+def unsoupify(soup):
+    '''Convert BeautifulSoup output to a text string.'''
     text = re.sub(r'\n', ' ', ''.join(soup.find_all(text=True)))
     text = unicodedata.normalize('NFKD', text)
     return text
