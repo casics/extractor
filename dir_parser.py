@@ -124,7 +124,7 @@ from utils import *
 from file_parser import file_elements
 from content_inferencer import *
 from text_converter import extract_text
-from human_language import human_language
+from human_language import *
 
 
 # Constants for this module.
@@ -159,10 +159,9 @@ def dir_elements(path):
             elif python_file(file):
                 elements = file_elements(file)
                 lang = 'en'
-                if elements and elements['header']:
-                    lang = human_language(elements['header'])
-                elif elements['comments']:
-                    lang = majority_language(elements['comments'])
+                if elements:
+                    chunks = [elements['header']] + elements['comments']
+                    lang = majority_language(chunks)
                 item = {'name': file, 'type': 'file', 'body': elements,
                         'code_language': 'Python', 'text_language': lang}
             elif text_file(file):
