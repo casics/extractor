@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.4
 #
-# @file    elementizer.py
+# @file    extractor.py
 # @brief   Network server for returning parsed contents of repositories
 # @author  Michael Hucka
 #
@@ -36,7 +36,7 @@ from dir_parser import dir_elements
 
 _default_port      = 9999
 _default_repo_root = '/srv/repositories'
-_default_log       = 'elementizer.log'
+_default_log       = 'extractor.log'
 
 
 # Main body.
@@ -55,7 +55,7 @@ def main(server=False, client=False, root=None, logfile=None, key=None,
         raise SystemExit('Must provide a crypto key')
 
     if server:
-        logger = ElementizerLogger(logfile)
+        logger = ExtractorLogger(logfile)
         if not root:
             root = _default_repo_root
         if not os.path.isdir(root):
@@ -75,13 +75,13 @@ def main(server=False, client=False, root=None, logfile=None, key=None,
         pid = os.fork()
         setproctitle.setproctitle(os.path.realpath(__file__))
         if pid != 0:
-            logger.info('Forked Elementizer daemon as process {}'.format(pid))
+            logger.info('Forked Extractor daemon as process {}'.format(pid))
             sys.exit()
         os.setsid()
         with Pyro4.Daemon(host=host, port=port) as daemon:
             daemon._pyroHmacKey = hmac
-            handler = ElementizerServer(daemon, host, port, root)
-            uri = daemon.register(handler, 'elementizer')
+            handler = ExtractorServer(daemon, host, port, root)
+            uri = daemon.register(handler, 'extractor')
             logger.info('-'*50)
             logger.info('uri = {}'.format(uri))
             msg('-'*60)
@@ -98,15 +98,15 @@ def main(server=False, client=False, root=None, logfile=None, key=None,
         if root:
             msg('Ignoring inapplicable option --root.  Continuing.')
 
-        elementizer = Pyro4.Proxy(uri)
-        elementizer._pyroHmacKey = hmac
+        extractor = Pyro4.Proxy(uri)
+        extractor._pyroHmacKey = hmac
 
         # Drop into REPL and let the user do interact with the remote server.
 
         banner = '''Available commands:
-    elementizer.get_status()
-    elementizer.get_dir_content(id)
-    elementizer.get_repo_path(id)
+    extractor.get_status()
+    extractor.get_dir_content(id)
+    extractor.get_repo_path(id)
 '''
 
         IPython.embed(banner1=banner)
@@ -115,7 +115,7 @@ def main(server=False, client=False, root=None, logfile=None, key=None,
 
 
 @Pyro4.expose
-class ElementizerServer(object):
+class ExtractorServer(object):
     def __init__(self, daemon, host, port, repo_root):
         self._daemon   = daemon
         self._host     = host
@@ -148,35 +148,35 @@ class ElementizerServer(object):
         return dir_elements(path)
 
 
-class ElementizerClient(object):
+class ExtractorClient(object):
     def __init__(self, uri, key):
         self._uri = uri
         self._key = key
-        self._elementizer = Pyro4.Proxy(uri)
-        self._elementizer._pyroHmacKey = str.encode(key)    # Convert to bytes
+        self._extractor = Pyro4.Proxy(uri)
+        self._extractor._pyroHmacKey = str.encode(key)    # Convert to bytes
 
 
     def get_status(self):
-        return self._elementizer.get_status()
+        return self._extractor.get_status()
 
 
     def get_repo_path(self, id):
         if not isinstance(id, int) and not isinstance(id, str):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return self._elementizer.get_repo_path(id)
+        return self._extractor.get_repo_path(id)
 
 
     def get_dir_contents(self, id):
         if not isinstance(id, int) and not isinstance(id, str):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return self._elementizer.get_dir_contents(id)
+        return self._extractor.get_dir_contents(id)
 
 
 
 # Utilities
 # .............................................................................
 
-class ElementizerLogger(object):
+class ExtractorLogger(object):
     quiet   = False
     logger  = None
     outlog  = None
