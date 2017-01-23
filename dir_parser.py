@@ -17,18 +17,23 @@
 # repository.
 #
 # The format of the JSON structure is simple and recursive.  Each element is
-# three-item dictionary: the key 'name' having as its associated value the
-# name of a file or directory, the key 'type' having as its value either
-# 'dir' or 'file', and the key 'body' containing the contents of the
-# file or directory.
+# a dictionary with a least the following key-value pairs: the key 'name'
+# having as its associated value the name of a file or directory, the key
+# 'type' having as its value either 'dir' or 'file', and the key 'body'
+# containing the contents of the file or directory.  In the case of files,
+# the dictionary has two additional keys: 'text_language', for the predominant
+# language found in the text (which for code, is taken from comments in the
+# file), and 'code_language', for the language of the program (if the file
+# is code).
 #
-#  * If an item is a directory, the three-item dictionary looks like this:
+#  * If an item is a directory, the dictionary looks like this:
 #
 #        { 'name': 'the directory name', 'type': 'dir', 'body': [ ... ] }
 #
-#  * If an item is a file, the two-item dictionary looks like this:
+#  * If an item is a file, the dictionary looks like this:
 #
-#        { 'name': 'the file name', 'type': 'file', 'body': content }
+#        { 'name': 'the file name', 'type': 'file', 'body': content,
+#          'code_language': 'the lang', 'text_language': 'the lang' }
 #
 # In the case of a directory, the value associated with the key 'body' is a
 # list that can be either empty ([]) if the directory is empty, or else a
@@ -76,6 +81,12 @@
 #  * list of variable names
 #  * list of comments
 #  * list of strings
+#
+# The predominant text language of a file is reported as a two-character ISO
+# language code.  E.g., 'en' for English, 'ko' for Korean, etc.  The
+# assessment is based by first looking for a file header and guessing the
+# language used, and if no header is found, then examining all the comments
+# (as individual strings) and taking the most common language from among them.
 
 import bs4
 import chardet
@@ -104,28 +115,24 @@ from   timeit import default_timer as timer
 from   tokenize import tokenize, COMMENT, STRING, NAME
 
 sys.path.append('../database')
+sys.path.append('../detector')
 sys.path.append('../cataloguer')
 sys.path.append('../common')
 
+import constants
 from utils import *
 from file_parser import file_elements
 from content_inferencer import *
-
-if not os.environ.get('NTLK_DATA'):
-    nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
+from text_converter import extract_text
+from human_language import human_language
 
 
-# Global constants.
+# Constants for this module.
 # .............................................................................
 
 _content_check_size    = 512
 _max_file_size         = 1024*1024
 _extreme_max_file_size = 5*1024*1024
-
-# This next URL is from:
-# http://daringfireball.net/2010/07/improved_regex_for_matching_urls
-# https://gist.github.com/gruber/8891611
-URL_REGEX = r"""(?i)\b((?:https?:(?:/{1,3}|[a-z0-9%])|[a-z0-9.\-]+[.](?:com|net|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)/)(?:[^\s()<>{}\[\]]+|\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\))+(?:\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’])|(?:(?<!@)[a-z0-9]+(?:[.\-][a-z0-9]+)*[.](?:com|net|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)\b/?(?!@)))"""
 
 
 # Main functions
@@ -144,18 +151,31 @@ def dir_elements(path):
         contents = []
         for file in files:
             if empty_file(file):
-                item = {'name': file, 'type': 'file', 'body': ''}
+                item = {'name': file, 'type': 'file', 'body': '',
+                        'text_language': None, 'code_language': None}
             elif ignorable_file(file):
-                item = {'name': file, 'type': 'file', 'body': None}
+                item = {'name': file, 'type': 'file', 'body': None,
+                        'text_language': None, 'code_language': None}
             elif python_file(file):
-                item = {'name': file, 'type': 'file', 'body': file_elements(file)}
+                elements = file_elements(file)
+                lang = 'en'
+                if elements and elements['header']:
+                    lang = human_language(elements['header'])
+                elif elements['comments']:
+                    lang = majority_language(elements['comments'])
+                item = {'name': file, 'type': 'file', 'body': elements,
+                        'code_language': 'Python', 'text_language': lang}
             elif text_file(file):
                 if excessively_large_file(file):
                     item = {'name': file, 'type': 'file', 'body': None}
                 else:
-                    item = {'name': file, 'type': 'file', 'body': extract_text(file)}
+                    text = extract_text(file)
+                    lang = human_language(text)
+                    item = {'name': file, 'type': 'file', 'body': text,
+                            'text_language': lang, 'code_language': None}
             else:
-                item = {'name': file, 'type': 'file', 'body': None}
+                item = {'name': file, 'type': 'file', 'body': None,
+                        'text_language': None, 'code_language': None}
             contents.append(item)
         for dir in subdirs:
             contents.append(dir_elements(dir))
@@ -165,46 +185,6 @@ def dir_elements(path):
 # Utilities.
 # .............................................................................
 
-_common_puretext_extensions = [
-    '.1st',
-    '.ascii',
-    '.readme',
-    '.text',
-    '.txt',
-]
-
-_common_text_markup_extensions = [
-    '.asciidoc',
-    '.adoc',
-    '.asc',
-    '.creole',
-    '.htm',
-    '.html5',
-    '.html',
-    '.htmls',
-    '.markdown',
-    '.md',
-    '.mdown',
-    '.mdwn',
-    '.mediwiki',
-    '.mkdn',
-    '.pod',
-    '.rdoc',
-    '.rtf',
-    '.rst',
-    '.textile',
-    '.wiki',
-]
-
-_common_ignorable_files = [
-    '*~',
-    '.#*',
-    '.*.swp',
-    '.bak',
-    '.pyc',
-]
-
-
 def empty_file(filename):
     return os.path.getsize(filename) == 0
 
@@ -212,7 +192,7 @@ def empty_file(filename):
 def ignorable_file(filename):
     return (not os.path.isfile(filename)
             or os.path.getsize(filename) > _extreme_max_file_size
-            or any(fnmatch(filename, pat) for pat in _common_ignorable_files))
+            or any(fnmatch(filename, pat) for pat in constants.common_ignorable_files))
 
 
 def python_file(filename):
@@ -241,7 +221,7 @@ def text_file(filename):
     if readme_file(filename):
         return True
     name, ext = os.path.splitext(filename.lower())
-    if ext in _common_puretext_extensions or ext in _common_text_markup_extensions:
+    if ext in constants.common_puretext_extensions or ext in constants.common_text_markup_extensions:
         return True
     elif not is_code_file(filename):
         return probably_text(filename)
@@ -256,158 +236,9 @@ def probably_text(filename):
         # msg('*** unable to check content of {}: {}'.format(filename, e))
         return False
 
-
-def extract_text(filename, encoding='utf-8'):
-    name, ext = os.path.splitext(filename.lower())
-    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-    try:
-        with open(filename, 'r', encoding=encoding) as file:
-            if ext in _common_puretext_extensions or ext == '':
-                return convert_plain_text(file.read())
-            elif ext in ['.md', '.markdown', '.mdwn', '.mkdn']:
-                # Testing showed better text output results using markdown
-                # module than using pypandoc.  Don't know why, don't care.
-                html = markdown.markdown(file.read(), output_format='html4')
-                return convert_html(html)
-            elif ext.startswith('.htm'):
-                return convert_html(file.read())
-            elif ext in ['.asciidoc', '.adoc', '.asc']:
-                html = convert_asciidoc_file(filename)
-                return convert_html(html)
-            elif ext in ['.rst']:
-                html = pypandoc.convert_file(filename, to='html')
-                return convert_html(html)
-            elif ext in ['.rtf']:
-                html = convert_rtf_file(filename)
-                return convert_html(html)
-            elif ext in ['.textile']:
-                html = textile.textile(file.read())
-                return convert_html(html)
-            else:
-                import ipdb; ipdb.set_trace()
-            # FIXME missing .rdoc, .pod, .wiki, .mediawiki, .creole
-    except UnicodeDecodeError:
-        # File does not contain UTF-8 bytes.  Try guessing actual encoding.
-        guess = None
-        with open(filename, 'rb') as f:
-            content = f.read(512)
-            guess = content and chardet.detect(content)
-        if guess and 'encoding' in guess:
-            return extract_text(filename, guess['encoding'])
-        else:
-            msg('*** unconvertible encoding in file {}'.format(filename))
-            return ''
-    except Exception as e:
-        msg('*** unable to extract text from {} file {}: {}'.format(ext, filename, e))
-        return ''
-
-
-def convert_plain_text(text):
-    # Remove URLs.
-    text = re.sub(URL_REGEX, '', text)
-    # Remove obvious divider lines, like lines of dashes.
-    text = re.sub(r'^[-=_]+$', '', text, flags=re.MULTILINE)
-    return text
-
-
-def convert_asciidoc_file(in_file):
-    # Convert asciidoc to HTML.
-    out_file = in_file + '.__tmp__'
-    cmd = 'asciidoctor --no-header-footer --safe --quiet -o {} {}'.format(out_file, in_file)
-    try:
-        retval = os.system(cmd)
-        if retval == 0:
-            with open(out_file) as f:
-                text = f.read()
-                return text
-        else:
-            msg('*** asciidoctor returned {} for {}'.format(retval, in_file))
-            return ''
-    finally:
-        os.unlink(out_file)
-
-
-def convert_rtf_file(in_file):
-    # Wanted to use Python 'pyth', but it's not Python 3 compatible.  Linux
-    # 'unrtf' needs to be installed on the system.
-    out_file = os.path.join(os.getcwd(), in_file) + '.__tmp__'
-    cmd = 'unrtf {} > {}'.format(os.path.join(os.getcwd(), in_file), out_file)
-    try:
-        retval = os.system(cmd)
-        if retval == 0:
-            with open(out_file) as f:
-                text = f.read()
-                return text
-        else:
-            msg('*** unrtf returned {} for {}'.format(retval, in_file))
-            return ''
-    finally:
-        os.unlink(out_file)
-
-
-# After looking at a lot of real-life README files and the result of its
-# conversion to text by Pandoc and other converters, I noticed that the text
-# often lacks punctuation that would indicate full sentences.  For human
-# readers, this is often not a problem (and depending on the final formatting
-# and the individual cases, may be correct), but it's a problem for feeding
-# this to natural language parsers that try to segment the text into
-# sentences.  The purpose of convert_html() is to adds missing punctuation
-# that will hopefully help NTLK sentence parsers.
-
-def convert_html(html):
-    # Use BeautifulSoup's API to modify the text of some elements, so that
-    # the result is more easily parsed into sentences by later tools.
-
-    soup = bs4.BeautifulSoup(html, 'lxml')
-    for ignorable in ['pre', 'img']:
-        for el in soup.find_all(ignorable):
-            # Ignore stuff we can't convert to sentences
-            el.extract()
-
-    for htype in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-        # Add periods at the ends of headings (to make them look like sentences)
-        for el in soup.find_all(htype):
-            if not el.text.rstrip().endswith(('?', '!', ':')):
-                el.append('.')
-
-    for el in soup.find_all('p'):
-        # Strip URLs inside the text.
-        el.replace_with(re.sub(URL_REGEX, '', el.text))
-        # Add periods at the ends of paragraphs if necessary.
-        if not el.text.rstrip().endswith(('?', '!', '.', ',', ':', ';', '-', '–', '—', '↩')):
-            el.append('.')
-
-    for el in soup.find_all('ul'):
-        list_elements = el.find_all('li')
-        if not list_elements:
-            continue
-        last = len(list_elements)
-        for i, li in enumerate(list_elements, start=1):
-            # Strip URLs inside the text.
-            li.replace_with(re.sub(URL_REGEX, '', li.text))
-            # Add commas after list elements if they have no other
-            # punctuation, and add a period after the last element.
-            if i == last and li.string:
-                li.append('.')
-            elif li.string and not li.string.rstrip().endswith(('.', ',', ':', ';')):
-                li.append(',')
-
-    text = re.sub(r'\n', ' ', ''.join(soup.find_all(text=True)))
-    return text
-
-
-def is_url(text):
-    for word in text.split(' '):
-        if urlparse(word.strip()).scheme:
-            return True
-
-
-def omit_common_extra_characters(s):
-    return s.sub('[0-9!_-+=@ ]', '')
-
 
 # Quick test driver.
 # .............................................................................
 
 if __name__ == '__main__':
-    msg(dir_elements(sys.argv[1]))
+    pprint.pprint(dir_elements(sys.argv[1]))
