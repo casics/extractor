@@ -14,7 +14,6 @@ import ast
 from   collections import deque, Counter
 import io, keyword
 import math
-import nltk
 import operator
 import os
 import re
@@ -26,9 +25,7 @@ sys.path.append('../database')
 sys.path.append('../common')
 
 from utils import *
-
-if not os.environ.get('NTLK_DATA'):
-    nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
+from text_converter import tokenize_text
 
 
 # Global configuration constants.
@@ -284,22 +281,6 @@ def filter_variables(calls, vars):
 def countify(seq):
     return Counter(seq).most_common()
 
-
-def clean_text(seq):
-    # Compress multiple blank lines into one.
-    text = re.sub(r'\n+', '\n', seq)
-    # Split the text into sentences.
-    text = nltk.tokenize.sent_tokenize(text)
-    # Tokenize each sentence
-    text = [nltk.word_tokenize(sent) for sent in text]
-    # Remove terms that have no alphanumeric characters.
-    sentences = []
-    for sent in text:
-        sentences.append([word for word in sent if re.search(r'\w', word)])
-    # Remove quote characters within strings.
-    # text = [re.sub('["`\']', '', word) for word in text]
-    return sentences
-
 
 # Main body.
 # .............................................................................
@@ -353,7 +334,7 @@ def file_elements(filename):
     # Note: don't uniquify the header.
     elements              = {}
     # These are not given frequencies.
-    elements['header']    = clean_text(header)
+    elements['header']    = header
     elements['comments']  = comments
     # These are turned into ('string', frequency) tuples.
     elements['imports']   = countify(collector.imports)
