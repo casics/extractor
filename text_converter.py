@@ -175,6 +175,12 @@ def convert_rtf_file(in_file):
 # sentences.  The purpose of convert_html() is to adds missing punctuation
 # and do other cleanup that will hopefully help NTLK sentence parsers.
 
+# Common punctuation that doesn't get a period after it.
+_okay_endings = ('?', '!', '.', ',', ':', ';', '-', '–', '—', '…',
+                 # The next line is filled with special non-ascii characters.
+                 # Some of these look like they have spaces, but they don't.
+                 '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
+
 def convert_html(html):
     '''Use BeautifulSoup's API to modify the text of some elements, so that
     the result is more easily parsed into sentences by later tools.
@@ -197,12 +203,12 @@ def convert_html(html):
     for htype in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
         # Add periods at the ends of headings (to make them look like sentences)
         for el in soup.find_all(htype):
-            if not el.text.rstrip().endswith(('?', '!', ':')):
+            if not el.text.rstrip().endswith(_okay_endings):
                 el.append('.')
 
     for el in soup.find_all('p'):
         # Add periods at the ends of paragraphs if necessary.
-        if not el.text.rstrip().endswith(('?', '!', '.', ',', ':', ';', '-', '–', '—', '↩')):
+        if not el.text.rstrip().endswith(_okay_endings):
             el.append('.')
         # Strip URLs inside the text.
         el.replace_with(re.sub(constants.url_regex, '', el.text))
@@ -218,10 +224,26 @@ def convert_html(html):
                 # punctuation, and add a period after the last element.
                 if i == last and li.string:
                     li.append('.')
-                elif li.string and not li.string.rstrip().endswith(('.', ',', ':', ';')):
+                elif li.string and not li.string.rstrip().endswith(_okay_endings):
                     li.append(',')
                 # Strip URLs inside the text.
                 li.replace_with(re.sub(constants.url_regex, '', li.text))
+
+    for el in soup.find_all('dl'):
+        for d in soup.find_all('dt'):
+            if d.string and not d.string.rstrip().endswith(_okay_endings):
+                d.append(':')
+        for d in soup.find_all('dd'):
+            if d.string and not d.string.rstrip().endswith(_okay_endings):
+                d.append('.')
+
+    for table_element in ['th', 'td']:
+        for el in soup.find_all(table_element):
+            if el.string and not el.string.rstrip().endswith(_okay_endings):
+                # This one gets a space afterwards because for some reason,
+                # BS doesn't put spaces after these elements when you do
+                # the find_all(text=True) at the end.
+                el.append('. ')
 
     # Return a single text string.
     return unsoupify(soup)
