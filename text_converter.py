@@ -122,8 +122,11 @@ def convert_plain_text(text):
     # Don't bother if it's not written in English.
     if human_language(text) != 'en':
         return text
+
     # Remove URLs.
-    text = re.sub(constants.url_regex, ' ', text)
+    # 2017-01-23 Currently think this better be done while tokenizing sentences
+    # text = re.sub(constants.url_regex, ' ', text)
+
     # Remove obvious divider lines, like lines of dashes.
     text = re.sub(r'^[-=_]+$', ' ', text, flags=re.MULTILINE)
     # Get rid of funky Unicode characters
