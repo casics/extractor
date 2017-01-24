@@ -201,11 +201,11 @@ def convert_html(html):
                 el.append('.')
 
     for el in soup.find_all('p'):
-        # Strip URLs inside the text.
-        el.replace_with(re.sub(constants.url_regex, '', el.text))
         # Add periods at the ends of paragraphs if necessary.
         if not el.text.rstrip().endswith(('?', '!', '.', ',', ':', ';', '-', '–', '—', '↩')):
             el.append('.')
+        # Strip URLs inside the text.
+        el.replace_with(re.sub(constants.url_regex, '', el.text))
 
     for el in soup.find_all('ul'):
         list_elements = el.find_all('li')
