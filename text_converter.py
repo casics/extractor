@@ -220,10 +220,11 @@ def convert_html(html):
             for i, li in enumerate(list_elements, start=1):
                 # Add commas after list elements if they have no other
                 # punctuation, and add a period after the last element.
-                if i == last and li.string:
-                    li.append('.')
-                elif li.string and not li.string.rstrip().endswith(_okay_endings):
-                    li.append(',')
+                if li.string and not li.string.rstrip().endswith(_okay_endings):
+                    if i == last:
+                        li.append('.')
+                    else:
+                        li.append(',')
 
     for el in soup.find_all('dl'):
         for d in soup.find_all('dt'):
@@ -236,14 +237,15 @@ def convert_html(html):
     for table_element in ['th', 'td']:
         for el in soup.find_all(table_element):
             if el.string and not el.string.rstrip().endswith(_okay_endings):
-                # This one gets a space afterwards because for some reason,
-                # BS doesn't put spaces after these elements when you do
-                # the find_all(text=True) at the end.
+                # This one adds a space afterwards, because for some reason
+                # BS doesn't put spaces after these elements when you do the
+                # find_all(text=True) at the end.
                 el.append('. ')
 
     # Strip out all URLs anywhere.
-    for el in soup.find_all(string=constants.url_compiled_regex):
-        el.string.replace_with(re.sub(constants.url_compiled_regex, '', el.string))
+    # 2017-01-23 Currently think this better be done while tokenizing sentences
+    # for el in soup.find_all(string=constants.url_compiled_regex):
+    #     el.string.replace_with(re.sub(constants.url_compiled_regex, '.', el.string))
 
     # Return a single text string.
     return unsoupify(soup)
