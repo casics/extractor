@@ -210,8 +210,6 @@ def convert_html(html):
         # Add periods at the ends of paragraphs if necessary.
         if not el.text.rstrip().endswith(_okay_endings):
             el.append('.')
-        # Strip URLs inside the text.
-        el.replace_with(re.sub(constants.url_regex, '', el.text))
 
     for list_type in ['ul', 'ol']:
         for el in soup.find_all(list_type):
@@ -226,8 +224,6 @@ def convert_html(html):
                     li.append('.')
                 elif li.string and not li.string.rstrip().endswith(_okay_endings):
                     li.append(',')
-                # Strip URLs inside the text.
-                li.replace_with(re.sub(constants.url_regex, '', li.text))
 
     for el in soup.find_all('dl'):
         for d in soup.find_all('dt'):
@@ -244,6 +240,10 @@ def convert_html(html):
                 # BS doesn't put spaces after these elements when you do
                 # the find_all(text=True) at the end.
                 el.append('. ')
+
+    # Strip out all URLs anywhere.
+    for el in soup.find_all(string=constants.url_compiled_regex):
+        el.string.replace_with(re.sub(constants.url_compiled_regex, '', el.string))
 
     # Return a single text string.
     return unsoupify(soup)
