@@ -207,20 +207,21 @@ def convert_html(html):
         # Strip URLs inside the text.
         el.replace_with(re.sub(constants.url_regex, '', el.text))
 
-    for el in soup.find_all('ul'):
-        list_elements = el.find_all('li')
-        if not list_elements:
-            continue
-        last = len(list_elements)
-        for i, li in enumerate(list_elements, start=1):
-            # Strip URLs inside the text.
-            li.replace_with(re.sub(constants.url_regex, '', li.text))
-            # Add commas after list elements if they have no other
-            # punctuation, and add a period after the last element.
-            if i == last and li.string:
-                li.append('.')
-            elif li.string and not li.string.rstrip().endswith(('.', ',', ':', ';')):
-                li.append(',')
+    for list_type in ['ul', 'ol']:
+        for el in soup.find_all(list_type):
+            list_elements = el.find_all('li')
+            if not list_elements:
+                continue
+            last = len(list_elements)
+            for i, li in enumerate(list_elements, start=1):
+                # Strip URLs inside the text.
+                li.replace_with(re.sub(constants.url_regex, '', li.text))
+                # Add commas after list elements if they have no other
+                # punctuation, and add a period after the last element.
+                if i == last and li.string:
+                    li.append('.')
+                elif li.string and not li.string.rstrip().endswith(('.', ',', ':', ';')):
+                    li.append(',')
 
     # Return a single text string.
     return unsoupify(soup)
