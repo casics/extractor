@@ -214,14 +214,14 @@ def convert_html(html):
                 continue
             last = len(list_elements)
             for i, li in enumerate(list_elements, start=1):
-                # Strip URLs inside the text.
-                li.replace_with(re.sub(constants.url_regex, '', li.text))
                 # Add commas after list elements if they have no other
                 # punctuation, and add a period after the last element.
                 if i == last and li.string:
                     li.append('.')
                 elif li.string and not li.string.rstrip().endswith(('.', ',', ':', ';')):
                     li.append(',')
+                # Strip URLs inside the text.
+                li.replace_with(re.sub(constants.url_regex, '', li.text))
 
     # Return a single text string.
     return unsoupify(soup)
