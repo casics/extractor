@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python3
 #
 # @file    file_parser.py
 # @brief   Parse a Python file and return a tuple of essential features.
@@ -25,7 +25,7 @@ sys.path.append('../database')
 sys.path.append('../common')
 
 from utils import *
-from text_converter import tokenize_text
+from text_converter import *
 
 
 # Global configuration constants.
@@ -38,8 +38,14 @@ _min_comment_len = 4
 _min_string_len = 6
 
 # Separator lines, or other comment lines without any text:
-_nontext_comment = re.compile(r'^[^A-Za-z]+$')
-_comment_start = '#'
+# Coding line at top of file is per https://www.python.org/dev/peps/pep-0263/
+
+_comment_start    = '#'
+_nontext_comment  = re.compile(r'^[^A-Za-z]+$')
+_hashbang_comment = re.compile('^#!.*$')
+_coding_comment   = re.compile('^[ \t\v]*.*?coding[:=]')
+_vim_comment      = re.compile('^[ \t\v]*vim')
+_emacs_comment    = re.compile('^[ \t\v]*-\*-[ \t]+mode:')
 
 # Some symbols in Python code are not useful to us.
 _ignorable_names = [
@@ -234,7 +240,12 @@ class ElementCollector(ast.NodeVisitor):
 
 def ignorable_comment(thing):
     return (thing.strip().startswith(_comment_start) and
-            (len(thing) < _min_comment_len or re.match(_nontext_comment, thing)))
+            (len(thing) < _min_comment_len
+             or re.match(_nontext_comment, thing)
+             or re.match(_coding_comment, thing)
+             or re.match(_vim_comment, thing)
+             or re.match(_emacs_comment, thing)
+             or re.match(_hashbang_comment, thing)))
 
 
 def ignorable_string(thing):
@@ -299,7 +310,13 @@ def file_elements(filename):
     stream = io.FileIO(filename)
     tokens = tokenize(stream.readline)
 
-    # Look for a header at the top, if any.
+    # Look for a header at the top, if any.  There are two common forms in
+    # Python: a string, and a comment block.  The heuristic used here is that
+    # if the first thing after any ignorable comments is a string, it's
+    # assumed to be the doc string; else, any initial comments (after certain
+    # special case comments, such as Unix hash-bang lines) are taken to be
+    # the header; else, no header.
+
     for kind, thing, _, _, _ in tokens:
         if kind == ENCODING:
             continue
@@ -307,9 +324,17 @@ def file_elements(filename):
             continue
         if kind != COMMENT and kind != NL:
             break
-        header += strip_comment_char(thing) + '\n'
+        header += strip_comment_char(thing)
 
     # When the above ends, 'thing' & 'kind' will be the next values to examine.
+    # If it's a string, it's assumed to be the file doc string.
+    if isinstance(thing, str):
+        if header:
+            header = header + ' ' + thing
+        else:
+            header = thing
+        (kind, thing, _, _, _) = next(tokens)
+
     # Iterate through the rest of the file, looking for comments.
     while thing != ENDMARKER:
         try:
@@ -334,7 +359,7 @@ def file_elements(filename):
     # Note: don't uniquify the header.
     elements              = {}
     # These are not given frequencies.
-    elements['header']    = header
+    elements['header']    = clean_text(header)
     elements['comments']  = comments
     # These are turned into ('string', frequency) tuples.
     elements['imports']   = countify(collector.imports)
@@ -351,4 +376,4 @@ def file_elements(filename):
 
 if __name__ == '__main__':
     import pprint
-    msg(pprint.pprint(file_elements(sys.argv[1])))
+    pprint.pprint(file_elements(sys.argv[1]))
