@@ -336,10 +336,11 @@ def file_elements(filename):
 
     if kind == STRING:
         restart_point = stream.tell()
+        docstring = thing.replace('"', '')
         if header:
-            header = header + ' ' + thing
+            header = header + ' ' + docstring
         else:
-            header = thing
+            header = docstring
         (kind, thing, _, _, line) = next(tokens)
     else:
         restart_point = stream.tell() - len(line)
@@ -359,7 +360,7 @@ def file_elements(filename):
             elif kind == COMMENT and not ignorable_comment(thing):
                 chunk = chunk + strip_comment_char(thing) + '\n'
             elif chunk:
-                comments.append(chunk)
+                comments.append(chunk.strip())
                 chunk = ''
             (kind, thing, _, _, _) = next(tokens)
         except StopIteration:
@@ -380,14 +381,14 @@ def file_elements(filename):
     # Note: don't uniquify the header.
     elements              = {}
     # These are not given frequencies.
-    elements['header']    = header
-    elements['comments']  = comments
+    elements['header']    = clean_plain_text(header)
+    elements['comments']  = [clean_plain_text(c) for c in comments]
     # These are turned into ('string', frequency) tuples.
     elements['imports']   = countify(collector.imports)
     elements['classes']   = countify(collector.classes)
     elements['functions'] = countify(collector.functions)
     elements['variables'] = countify(collector.variables)
-    elements['strings']   = countify(collector.strings)
+    elements['strings']   = countify([clean_plain_text(c) for c in collector.strings])
     elements['calls']     = countify(filtered_calls)
     return elements
 
@@ -397,4 +398,4 @@ def file_elements(filename):
 
 if __name__ == '__main__':
     import pprint
-    pprint.pprint(file_elements(sys.argv[1]))
+    msg(file_elements(sys.argv[1]))
