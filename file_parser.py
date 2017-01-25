@@ -367,7 +367,7 @@ def file_elements(filename):
     # Note: don't uniquify the header.
     elements              = {}
     # These are not given frequencies.
-    elements['header']    = clean_text(header)
+    elements['header']    = header
     elements['comments']  = comments
     # These are turned into ('string', frequency) tuples.
     elements['imports']   = countify(collector.imports)
