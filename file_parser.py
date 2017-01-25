@@ -317,7 +317,7 @@ def file_elements(filename):
     # special case comments, such as Unix hash-bang lines) are taken to be
     # the header; else, no header.
 
-    for kind, thing, _, _, _ in tokens:
+    for kind, thing, _, _, line in tokens:
         if kind == ENCODING:
             continue
         if ignorable_comment(thing):
@@ -328,12 +328,20 @@ def file_elements(filename):
 
     # When the above ends, 'thing' & 'kind' will be the next values to examine.
     # If it's a string, it's assumed to be the file doc string.
-    if isinstance(thing, str):
+    if kind == STRING:
         if header:
             header = header + ' ' + thing
         else:
             header = thing
-        (kind, thing, _, _, _) = next(tokens)
+        (kind, thing, _, _, line) = next(tokens)
+    if header:
+        header = header.strip()
+
+    # Once we do this, we'll have read the header comment or the doc string and
+    # the file position will be immediately after that point.  When we do our
+    # 2nd pass, we don't want to read that stuff again.  Back up over the last
+    # non-string/comment thing we read, and remember where we are.
+    restart_point = stream.tell() - len(line)
 
     # Iterate through the rest of the file, looking for comments.
     while thing != ENDMARKER:
@@ -348,7 +356,7 @@ def file_elements(filename):
     # inefficient, because we're iterating over the file a 2nd time, but our
     # efforts right now are about getting things to work any way possible.
 
-    stream.seek(0)
+    stream.seek(restart_point)
     tree = ast.parse(stream.read())
     collector = ElementCollector()
     collector.visit(tree)
