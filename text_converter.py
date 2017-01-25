@@ -51,6 +51,16 @@ if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
 
 
+# Global constants
+# .............................................................................
+
+# Common punctuation that doesn't get a period after it.
+_okay_endings = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
+                 # The next line is filled with special non-ascii characters.
+                 # Some of these look like they have spaces, but they don't.
+                 '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
+
+
 # Main functions
 # .............................................................................
 
@@ -60,7 +70,7 @@ def extract_text(filename, encoding='utf-8'):
     try:
         with open(filename, 'r', encoding=encoding) as file:
             if ext in constants.common_puretext_extensions:
-                return convert_plain_text(file.read())
+                return clean_text(file.read())
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn']:
                 # Testing showed better text output results using markdown
                 # module than using pypandoc.  Don't know why, don't care.
@@ -99,6 +109,34 @@ def extract_text(filename, encoding='utf-8'):
         return ''
 
 
+def clean_text(text):
+    # Don't bother if it's not written in English.
+    if human_language(text) != 'en':
+        return text
+
+    # Get rid of funky Unicode characters
+    text = unicodedata.normalize('NFKD', text)
+
+    # Remove obvious divider lines, like lines of dashes.
+    text = re.sub(r'^[-=_]+$', ' ', text, flags=re.MULTILINE)
+
+    # Compress multiple blank lines.
+    text = re.sub(r'\n\n\n+', '\n\n', text)
+
+    import ipdb; ipdb.set_trace()
+    # Turn single newlines into spaces.
+    text = re.sub(r'(?<!\n)\n(?=[^\n])', ' ', text, flags=re.MULTILINE)
+
+    # If there are two newlines in a row, treat it like a paragraph break,
+    # and see if the text prior to that point has an ending period.  If it
+    # doesn't, add one, on the heuristic basis that it's likely a sentence end.
+    text = re.sub(r'([^'+''.join(_okay_endings)+r'])([ \t]*)\n\n',
+                  r'\1.\2\n\n', text, flags=re.MULTILINE)
+
+    # Strip blank space at the beginning and end of the whole thing.
+    return text.strip()
+
+
 def tokenize_text(seq):
     # Compress multiple blank lines into one.
     text = re.sub(r'\n+', '\n', seq)
@@ -117,22 +155,6 @@ def tokenize_text(seq):
 
 # Utilities.
 # .............................................................................
-
-def convert_plain_text(text):
-    # Don't bother if it's not written in English.
-    if human_language(text) != 'en':
-        return text
-
-    # Remove URLs.
-    # 2017-01-23 Currently think this better be done while tokenizing sentences
-    # text = re.sub(constants.url_regex, ' ', text)
-
-    # Remove obvious divider lines, like lines of dashes.
-    text = re.sub(r'^[-=_]+$', ' ', text, flags=re.MULTILINE)
-    # Get rid of funky Unicode characters
-    text = unicodedata.normalize('NFKD', text)
-    return text
-
 
 def convert_asciidoc_file(in_file):
     # Convert asciidoc to HTML.
@@ -177,12 +199,6 @@ def convert_rtf_file(in_file):
 # this to natural language parsers that try to segment the text into
 # sentences.  The purpose of convert_html() is to adds missing punctuation
 # and do other cleanup that will hopefully help NTLK sentence parsers.
-
-# Common punctuation that doesn't get a period after it.
-_okay_endings = ('?', '!', '.', ',', ':', ';', '-', '–', '—', '…',
-                 # The next line is filled with special non-ascii characters.
-                 # Some of these look like they have spaces, but they don't.
-                 '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
 
 def convert_html(html):
     '''Use BeautifulSoup's API to modify the text of some elements, so that
