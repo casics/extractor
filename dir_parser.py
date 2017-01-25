@@ -239,4 +239,4 @@ def probably_text(filename):
 # .............................................................................
 
 if __name__ == '__main__':
-    pprint.pprint(dir_elements(sys.argv[1]))
+    msg(dir_elements(sys.argv[1]))
