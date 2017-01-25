@@ -348,11 +348,19 @@ def file_elements(filename):
         header = header.strip()
 
     # Iterate through the rest of the file, looking for comments.
+    # This gathers consecutive comment lines together, on the premise that
+    # they may contain sentences split across multiple comment lines.
 
+    chunk = ''
     while thing != ENDMARKER:
         try:
-            if kind == COMMENT and not ignorable_comment(thing):
-                comments.append(strip_comment_char(thing))
+            if kind == NL:
+                pass
+            elif kind == COMMENT and not ignorable_comment(thing):
+                chunk = chunk + strip_comment_char(thing) + '\n'
+            elif chunk:
+                comments.append(chunk)
+                chunk = ''
             (kind, thing, _, _, _) = next(tokens)
         except StopIteration:
             break
