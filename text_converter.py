@@ -70,7 +70,7 @@ def extract_text(filename, encoding='utf-8'):
     try:
         with open(filename, 'r', encoding=encoding) as file:
             if ext in constants.common_puretext_extensions:
-                return clean_text(file.read())
+                return clean_plain_text(file.read())
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn']:
                 # Testing showed better text output results using markdown
                 # module than using pypandoc.  Don't know why, don't care.
@@ -109,7 +109,7 @@ def extract_text(filename, encoding='utf-8'):
         return ''
 
 
-def clean_text(text):
+def clean_plain_text(text):
     # Don't bother if it's not written in English.
     if human_language(text) != 'en':
         return text
@@ -117,13 +117,12 @@ def clean_text(text):
     # Get rid of funky Unicode characters
     text = unicodedata.normalize('NFKD', text)
 
-    # Remove obvious divider lines, like lines of dashes.
-    text = re.sub(r'^[-=_]+$', ' ', text, flags=re.MULTILINE)
+    # Remove obvious divider lines, like lines of repeated dashes.
+    text = re.sub(r'^[-=_.]+$', ' ', text, flags=re.MULTILINE)
 
     # Compress multiple blank lines.
     text = re.sub(r'\n\n\n+', '\n\n', text)
 
-    import ipdb; ipdb.set_trace()
     # Turn single newlines into spaces.
     text = re.sub(r'(?<!\n)\n(?=[^\n])', ' ', text, flags=re.MULTILINE)
 
