@@ -328,22 +328,27 @@ def file_elements(filename):
 
     # When the above ends, 'thing' & 'kind' will be the next values to examine.
     # If it's a string, it's assumed to be the file doc string.
-    if kind == STRING:
-        if header:
-            header = header + ' ' + thing
-        else:
-            header = thing
-        (kind, thing, _, _, line) = next(tokens)
-    if header:
-        header = header.strip()
 
     # Once we do this, we'll have read the header comment or the doc string and
     # the file position will be immediately after that point.  When we do our
     # 2nd pass, we don't want to read that stuff again.  Back up over the last
     # non-string/comment thing we read, and remember where we are.
-    restart_point = stream.tell() - len(line)
+
+    if kind == STRING:
+        restart_point = stream.tell()
+        if header:
+            header = header + ' ' + thing
+        else:
+            header = thing
+        (kind, thing, _, _, line) = next(tokens)
+    else:
+        restart_point = stream.tell() - len(line)
+
+    if header:
+        header = header.strip()
 
     # Iterate through the rest of the file, looking for comments.
+
     while thing != ENDMARKER:
         try:
             if kind == COMMENT and not ignorable_comment(thing):
