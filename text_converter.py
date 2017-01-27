@@ -73,7 +73,7 @@ def extract_text(filename, encoding='utf-8'):
         with open(filename, 'r', encoding=encoding) as file:
             if ext in constants.common_puretext_extensions:
                 return clean_plain_text(file.read())
-            elif ext in ['.md', '.markdown', '.mdwn', '.mkdn']:
+            elif ext in ['.md', '.markdown', '.mdwn', '.mkdn', '.mdown']:
                 # Testing showed better text output results using markdown
                 # module than using pypandoc.  Don't know why, don't care.
                 html = markdown.markdown(file.read(), output_format='html4')
