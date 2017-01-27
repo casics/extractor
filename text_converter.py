@@ -35,6 +35,7 @@ import textile
 from   time import sleep
 from   timeit import default_timer as timer
 from   tokenize import tokenize, COMMENT, STRING, NAME
+from   nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
 import unicodedata
 
 sys.path.append('../database')
@@ -42,10 +43,11 @@ sys.path.append('../detector')
 sys.path.append('../cataloguer')
 sys.path.append('../common')
 
-import constants
 from utils import *
-from content_inferencer import *
-from human_language import *
+
+import constants
+from   content_inferencer import *
+from   human_language import *
 
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
@@ -109,7 +111,14 @@ def extract_text(filename, encoding='utf-8'):
         return ''
 
 
+_common_ignored = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
+_common_ignored_regex = re.compile(_common_ignored, re.IGNORECASE)
+
+_rst_tags = r':param|:return|:type|:rtype'
+
 def clean_plain_text(text):
+    '''Do limited cleaning of text that appears in Python code.'''
+
     # Don't bother if it's not written in English.
     if human_language(text) != 'en':
         return text
@@ -126,30 +135,72 @@ def clean_plain_text(text):
     # Turn single newlines into spaces.
     text = re.sub(r'(?<!\n)\n(?=[^\n])', ' ', text, flags=re.MULTILINE)
 
+    # Massage Sphinx style doc patterns to make it more clear where
+    # sentence boundaries would be.
+    text = re.sub(r'('+_rst_tags+')', r'\n\n\1', text, flags=re.IGNORECASE)
+
+    # Remove random other things that are useless to us.
+    text = re.sub(_common_ignored_regex, '', text)
+
     # If there are two newlines in a row, treat it like a paragraph break,
     # and see if the text prior to that point has an ending period.  If it
     # doesn't, add one, on the heuristic basis that it's likely a sentence end.
     text = re.sub(r'([^'+''.join(_okay_endings)+r'])([ \t]*)\n\n',
                   r'\1.\2\n\n', text, flags=re.MULTILINE)
 
+    # Compress multiple spaces into one.
+    text = re.sub(r' +', ' ', text)
+    text = re.sub(r'\t+', ' ', text)
+
     # Strip blank space at the beginning and end of the whole thing.
     return text.strip()
 
 
+_common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
+                       'e.g', 'i.e'])
+_odd_chars = '|<>&+=$%'
+_odd_char_splitter = str.maketrans(_odd_chars, ' '*len(_odd_chars))
+
 def tokenize_text(seq):
+    '''Tokenizes a string containing one or more sentences, and returns a
+    list of lists, with the outer list representing sentences and the inner
+    lists representing tokenized words within each sentence.  This does not
+    remove stop words or do more advanced NL processing.'''
+
     # Compress multiple blank lines into one.
     text = re.sub(r'\n+', '\n', seq)
+
+    # Remove URLs.
+    text = re.sub(constants.url_compiled_regex, '', text)
+
+    # Split words at certain characters that are not used in normal writing.
+    text = str.translate(text, _odd_char_splitter)
+
     # Split the text into sentences.
-    text = nltk.tokenize.sent_tokenize(text)
-    # Tokenize each sentence
+    punkt_param = PunktParameters()
+    punkt_param.abbrev_types = _common_abbrevs
+    sentence_splitter = PunktSentenceTokenizer(punkt_param)
+    text = sentence_splitter.tokenize(text, realign_boundaries=True)
+
+    # Tokenize each sentence individually.
     text = [nltk.word_tokenize(sent) for sent in text]
-    # Remove terms that have no alphanumeric characters.
+
+    # Remove terms that don't any letters in them.
     sentences = []
     for sent in text:
-        sentences.append([word for word in sent if re.search(r'\w', word)])
-    # Remove quote characters within strings.
-    # text = [re.sub('["`\']', '', word) for word in text]
+        sentences.append([word for word in sent if re.search(r'[a-zA-Z]', word)])
+
+    # Remove embedded quote characters & other oddball characters in strings.
+    sentences = [[re.sub('["`\']', '', word) for word in sent] for sent in sentences]
+
+    # Remove blanks.
+    sentences = filter(None, sentences)
+
+    # Done.
     return sentences
+
+
+
 
 
 # Utilities.
