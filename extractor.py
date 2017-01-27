@@ -105,7 +105,7 @@ def main(server=False, client=False, root=None, logfile=None, key=None,
 
         banner = '''Available commands:
     extractor.get_status()
-    extractor.get_dir_content(id)
+    extractor.get_dir_contents(id)
     extractor.get_repo_path(id)
 '''
 
