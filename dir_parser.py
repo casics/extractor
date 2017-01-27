@@ -21,10 +21,10 @@
 # having as its associated value the name of a file or directory, the key
 # 'type' having as its value either 'dir' or 'file', and the key 'body'
 # containing the contents of the file or directory.  In the case of files,
-# the dictionary has two additional keys: 'text_language', for the predominant
-# language found in the text (which for code, is taken from comments in the
-# file), and 'code_language', for the language of the program (if the file
-# is code).
+# the dictionary has two additional keys: `'text_language'`, for the
+# predominant human language found in the text (based on the file header and
+# comments), and `'code_language'`, for the language of the program (if the
+# file is code).
 #
 #  * If an item is a directory, the dictionary looks like this:
 #
@@ -48,27 +48,41 @@
 #
 # Altogether, this leads to the following possibilities:
 #
-#  * {'name': 'abc', 'type': 'dir', 'body': []} if 'name' is an empty directory
+# * `{'name': 'abc', 'type': 'dir', 'body': []}` if `'name'` is an empty
+# * directory
 #
-#  * {'name': 'abc', 'type': 'dir', 'body': [ ...dicts... ] if it's not empty
+# * `{'name': 'abc', 'type': 'dir', 'body': [ ...dicts... ]` if it's not empty
 #
-#  * {'name': 'abc', 'type': 'file', 'body': ''} if the file is empty
+# * `{'name': 'abc', 'type': 'file', 'body': '', 'text_language': None,
+#   'code_language': Node}` if the file is empty
 #
-#  * {'name': 'abc', 'type': 'file', 'body': '...string...'} if the file
-#      contains text but not code
+# * `{'name': 'abc', 'type': 'file', 'body': '...string...', 'text_language':
+#   'en', 'code_language': Node}` if the file contains text in English but
+#   not code
 #
-#  * {'name': 'abc', 'type': 'file', 'body': { elements } } if the file
-#      contains code
+# * `{'name': 'abc', 'type': 'file', 'body': { elements }, 'text_language':
+#   'en', 'code_language': 'Python' }` if the file contains Python code with
+#   English text
 #
-#  * {'name': 'abc', 'type': 'file', 'body': None} if the file is ignored
+# * `{'name': 'abc', 'type': 'file', 'body': None, 'text_language': None,
+#   'code_language': Node}` if the file is ignored
 #
 # When it comes to non-code text files, if the file is not literally plain
-# text, Elementizer extracts the text from it.  It currently converts the
+# text, Extractor extracts the text from it.  It currently converts the
 # following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF, and
 # Textile.  It does this by using a variety of utilities such as
-# BeautifulSoup to convert the formats to plain text, and post-processes the
-# result using various heuristics to create text that is hopefully easier for
-# subsequent tools (like NLTK) to interpret as normal text.
+# BeautifulSoup to convert the formats to plain text, and returns this as a
+# single string.  In the case of a code file, the value associated with the
+# `'body'` key is a dictionary of elements described in more detail below.
+#
+# The text language inside files is inferred using
+# `[langid](https://github.com/saffsd/langid.py)` and the value for the key
+# `text_language` is a two-letter ISO 639-1 code (e.g., `'en'` for English).
+# The language inferrence is not perfect, particularly when there is not much
+# text in a file, but by examining all the text chunks in a file (including
+# all the separate comments) and returning the most frequently-inferred
+# language, Extractor can do a reasonable job.  If there is no text at all
+# (no headers, no comments), Extractor defaults to `'en'`.
 #
 # In the case of a code file, the value associated with the
 # 'body' key is a dictionary of elements described in more detail below.
