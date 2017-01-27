@@ -149,17 +149,20 @@ class ElementCollector(ast.NodeVisitor):
     '''AST node visitor for creating lists of elements that we care about.'''
 
     def __init__(self):
-        self.imports   = []
-        self.classes   = []
-        self.functions = []
-        self.variables = []
-        self.comments  = []
-        self.strings   = []
-        self.calls     = []
-
+        self.imports    = []
+        self.classes    = []
+        self.functions  = []
+        self.docstrings = []
+        self.variables  = []
+        self.comments   = []
+        self.strings    = []
+        self.calls      = []
+        self._current_class    = None
+        self._current_function = None
 
     def operation_on_variable(self, name):
         return any(name in x for x in self.variables)
+
 
     def generic_visit(self, node):
         super(ElementCollector, self).generic_visit(node)
@@ -176,8 +179,29 @@ class ElementCollector(ast.NodeVisitor):
             name_visitor.visit(thing)
             name = name_visitor.name
             if not ignorable_name(name):
-                self.variables.append(name)
+                path = []
+                if self._current_function:
+                    path.append(self._current_function)
+                elif self._current_class:
+                    path.append(self._current_class)
+                path.append(name)
+                var_name = '|'.join(path)
+                self.variables.append(var_name)
         self.visit(node.value)
+
+
+    def visit_For(self, node):
+        # The variable in a for loop is in a different scope, which means it
+        # shadows any instances of the same variable name outside, which
+        # means we should count it without regard to whether a variable by
+        # the same name already exists.
+        if isinstance(node.target, ast.Name):
+            if not ignorable_name(node.target.id):
+                self.variables.append(node.target.id)
+        elif isinstance(node.target, ast.Tuple):
+            for var in node.target.elts:
+                if not ignorable_name(var.id):
+                    self.variables.append(var.id)
 
 
     def visit_Call(self, node):
@@ -190,15 +214,50 @@ class ElementCollector(ast.NodeVisitor):
 
 
     def visit_FunctionDef(self, node):
+        func_name = None
         if not ignorable_name(node.name):
-            self.functions.append(node.name)
+            path = []
+            if self._current_function:
+                path.append(self._current_function)
+            elif self._current_class:
+                path.append(self._current_class)
+            path.append(node.name)
+            func_name = '.'.join(path)
+            self.functions.append(func_name)
         # Treat function parameter names as vars.
         for arg in node.args.args:
             if not ignorable_name(arg.arg):
-                self.variables.append(arg.arg)
-        # Process the body.
-        for thing in node.body:
-            self.visit(thing)
+                # Do the same trick with the names as we do for other vars.
+                path = []
+                if func_name:
+                    path.append(func_name)
+                elif self._current_class:
+                    path.append(self._current_class)
+                path.append(arg.arg)
+                var_name = '|'.join(path)
+                self.variables.append(var_name)
+        # Check if there's a doc string.
+        if len(node.body) > 0 and hasattr(node.body[0], 'value'):
+            first_thing = node.body[0].value
+            if isinstance(first_thing, ast.Str) and first_thing.s:
+                self.docstrings.append(first_thing.s)
+                # Process the body, skipping the doc string.
+                for thing in node.body[1:]:
+                    self._current_function = func_name
+                    self.visit(thing)
+                    self._current_function = None
+            else:
+                # Process the body.
+                for thing in node.body:
+                    self._current_function = func_name
+                    self.visit(thing)
+                    self._current_function = None
+        else:
+            # Process the body.
+            for thing in node.body:
+                self._current_function = func_name
+                self.visit(thing)
+                self._current_function = None
 
 
     def visit_Function(self, node):
@@ -228,11 +287,32 @@ class ElementCollector(ast.NodeVisitor):
 
 
     def visit_ClassDef(self, node):
+        class_name = None
         if not ignorable_name(node.name):
-            self.classes.append(node.name)
-        # Process the body.
-        for thing in node.body:
-            self.visit(thing)
+            path = []
+            if self._current_function:
+                path.append(self._current_function)
+            elif self._current_class:
+                path.append(self._current_class)
+            path.append(node.name)
+            class_name = '.'.join(path)
+            self.classes.append(class_name)
+        # Check if there's a doc string.
+        if len(node.body) > 0 and hasattr(node.body[0], 'value'):
+            first_thing = node.body[0].value
+            if isinstance(first_thing, ast.Str) and first_thing.s:
+                self.docstrings.append(first_thing.s)
+            # Process the body, skipping the doc string.
+            for thing in node.body[1:]:
+                self._current_class = class_name
+                self.visit(thing)
+                self._current_class = None
+        else:
+            # Process the body.
+            for thing in node.body:
+                self._current_class = class_name
+                self.visit(thing)
+                self._current_class = None
 
 
 # Utilities.
@@ -336,17 +416,10 @@ def file_elements(filename):
 
     if kind == STRING:
         restart_point = stream.tell()
-        docstring = thing.replace('"', '')
-        if header:
-            header = header + ' ' + docstring
-        else:
-            header = docstring
+        header = header + ' ' + thing.replace('"', '')
         (kind, thing, _, _, line) = next(tokens)
     else:
         restart_point = stream.tell() - len(line)
-
-    if header:
-        header = header.strip()
 
     # Iterate through the rest of the file, looking for comments.
     # This gathers consecutive comment lines together, on the premise that
@@ -375,21 +448,28 @@ def file_elements(filename):
     collector = ElementCollector()
     collector.visit(tree)
 
+    # The variables are stored temporarily as paths separated by '|' so that
+    # we can find unique variable name assignments within each function or
+    # class context.  Remove the paths now, leaving just the variable names.
+    unique_var_paths = list(set(collector.variables))
+    collector.variables = [x[x.rfind('|')+1:] for x in unique_var_paths]
+
     # Post-process some of the results from the above.
     filtered_calls = filter_variables(collector.calls, collector.variables)
 
     # Note: don't uniquify the header.
     elements              = {}
     # These are not given frequencies.
-    elements['header']    = clean_plain_text(header)
-    elements['comments']  = [clean_plain_text(c) for c in comments]
+    elements['header']     = clean_plain_text(header)
+    elements['comments']   = [clean_plain_text(c) for c in comments]
+    elements['docstrings'] = [clean_plain_text(c) for c in collector.docstrings]
     # These are turned into ('string', frequency) tuples.
-    elements['imports']   = countify(collector.imports)
-    elements['classes']   = countify(collector.classes)
-    elements['functions'] = countify(collector.functions)
-    elements['variables'] = countify(collector.variables)
-    elements['strings']   = countify([clean_plain_text(c) for c in collector.strings])
-    elements['calls']     = countify(filtered_calls)
+    elements['imports']    = countify(collector.imports)
+    elements['classes']    = countify(collector.classes)
+    elements['functions']  = countify(collector.functions)
+    elements['variables']  = countify(collector.variables)
+    elements['strings']    = countify([clean_plain_text(c) for c in collector.strings])
+    elements['calls']      = countify(filtered_calls)
     return elements
 
 
@@ -398,4 +478,5 @@ def file_elements(filename):
 
 if __name__ == '__main__':
     import pprint
-    msg(file_elements(sys.argv[1]))
+    e = file_elements(sys.argv[1])
+    import ipdb; ipdb.set_trace()
