@@ -169,26 +169,27 @@ def dir_elements(path):
         contents = []
         for file in files:
             if empty_file(file):
-                item = file_dict(file, '', None, None)
+                contents.append(file_dict(file, '', None, None))
+                continue
             elif ignorable_file(file):
-                item = file_dict(file, None, None, None)
+                contents.append(file_dict(file, None, None, None))
+                continue
             elif python_file(file):
                 elements = file_elements(file)
                 lang = 'en'
                 if elements:
                     chunks = [elements['header']] + elements['comments']
                     lang = majority_language(chunks)
-                item = file_dict(file, elements, 'Python', lang)
-            elif text_file(file):
-                if excessively_large_file(file):
-                    item = file_dict(file, None, None, None)
-                else:
-                    text = extract_text(file)
+                contents.append(file_dict(file, elements, 'Python', lang))
+                continue
+            elif text_file(file) and not excessively_large_file(file):
+                text = extract_text(file)
+                if text:
                     lang = human_language(text)
-                    item = file_dict(file, text, None, lang)
-            else:
-                item = file_dict(file, None, None, None)
-            contents.append(item)
+                    contents.append(file_dict(file, text, None, lang))
+                    continue
+            # Fall-back for cases we don't handle.
+            contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
             contents.append(dir_elements(dir))
         return {'name': path, 'type': 'dir', 'body': contents}
@@ -209,7 +210,7 @@ def ignorable_file(filename):
 
 def python_file(filename):
     name, ext = os.path.splitext(filename.lower())
-    if ext == '.py':
+    if ext in ['.py', '.wsgi']:
         return True
     if ext == '':
         # No extension, but might still be a python file.
@@ -253,4 +254,4 @@ def probably_text(filename):
 # .............................................................................
 
 if __name__ == '__main__':
-    msg(dir_elements(sys.argv[1]))
+    pprint.pprint(dir_elements(sys.argv[1]))
