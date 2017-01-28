@@ -81,19 +81,20 @@ def extract_text(filename, encoding='utf-8'):
             elif ext.startswith('.htm'):
                 return convert_html(file.read())
             elif ext in ['.asciidoc', '.adoc', '.asc']:
-                html = convert_asciidoc_file(filename)
+                html = html_from_asciidoc_file(filename)
                 return convert_html(html)
             elif ext in ['.rst']:
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
             elif ext in ['.rtf']:
-                html = convert_rtf_file(filename)
+                html = html_from_rtf_file(filename)
                 return convert_html(html)
             elif ext in ['.textile']:
                 html = textile.textile(file.read())
                 return convert_html(html)
             else:
-                import ipdb; ipdb.set_trace()
+                msg('cannot handle {} file'.format(ext))
+                return None
             # FIXME missing .rdoc, .pod, .wiki, .mediawiki, .creole
     except UnicodeDecodeError:
         # File does not contain UTF-8 bytes.  Try guessing actual encoding.
@@ -199,46 +200,31 @@ def tokenize_text(seq):
     # Done.
     return sentences
 
-
-
-
 
 # Utilities.
 # .............................................................................
 
-def convert_asciidoc_file(in_file):
-    # Convert asciidoc to HTML.
-    out_file = in_file + '.__tmp__'
-    cmd = 'asciidoctor --no-header-footer --safe --quiet -o {} {}'.format(out_file, in_file)
-    try:
-        retval = os.system(cmd)
-        if retval == 0:
-            with open(out_file) as f:
-                text = f.read()
-                return text
-        else:
-            msg('*** asciidoctor returned {} for {}'.format(retval, in_file))
-            return ''
-    finally:
-        os.unlink(out_file)
+def html_from_asciidoc_file(filename):
+    '''Convert asciidoc file to HTML.'''
+    cmd = ['asciidoctor', '--no-header-footer', '--safe', '--quiet',
+           '-o', '-', os.path.join(os.getcwd(), filename)]
+    (status, output, errors) = shell_cmd(cmd)
+    if status == 0:
+        return output
+    else:
+        raise ShellCommandException('asciidoctor failed: {}'.format(errors))
 
 
-def convert_rtf_file(in_file):
+def html_from_rtf_file(filename):
+    '''Convert RTF file to HTML.'''
     # Wanted to use Python 'pyth', but it's not Python 3 compatible.  Linux
     # 'unrtf' needs to be installed on the system.
-    out_file = os.path.join(os.getcwd(), in_file) + '.__tmp__'
-    cmd = 'unrtf {} > {}'.format(os.path.join(os.getcwd(), in_file), out_file)
-    try:
-        retval = os.system(cmd)
-        if retval == 0:
-            with open(out_file) as f:
-                text = f.read()
-                return text
-        else:
-            msg('*** unrtf returned {} for {}'.format(retval, in_file))
-            return ''
-    finally:
-        os.unlink(out_file)
+    cmd = ['unrtf', os.path.join(os.getcwd(), filename)]
+    (status, output, errors) = shell_cmd(cmd)
+    if status == 0:
+        return output
+    else:
+        raise ShellCommandException('unrtf failed: {}'.format(errors))
 
 
 # After looking at a lot of real-life README files and the result of its
