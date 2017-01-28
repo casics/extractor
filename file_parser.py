@@ -17,6 +17,7 @@ import math
 import operator
 import os
 import re
+import shutil
 import sys
 import token
 from tokenize import *
@@ -372,6 +373,45 @@ def filter_variables(calls, vars):
 def countify(seq):
     return Counter(seq).most_common()
 
+
+def assumes_python2(stream):
+    try:
+        # If AST doesn't bail, we assume it uses Python 3 syntax.
+        tree = ast.parse(stream.read())
+        stream.seek(0)
+        return False
+    except SyntaxError:
+        # This almost always means that the code is in Python 2.
+        return True
+    except Exception as err:
+        import ipdb; ipdb.set_trace()
+        return False
+
+
+def convert_python2_file(filename):
+    '''Convert Python 2 file to (limited) Python 3.  Returns the file name
+    of the file containing the converted code.  The caller must delete this
+    file after it's done.'''
+    # When I use --add-suffix with 2to3, I consistently get an error in my
+    # environment. There's some sort of bug.  So, we resort to contortions.
+    full_pathname = os.path.join(os.getcwd(), filename)
+    working_filename = full_pathname + '.__casicstmp__'
+    cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except', working_filename]
+    try:
+        shutil.copyfile(full_pathname, working_filename)
+        (status, output, errors) = shell_cmd(cmd)
+        if status == 0:
+            return working_filename
+        elif os.path.exists(working_filename):
+            os.remove(working_filename)
+        return None
+    except OSError as err:
+        import ipdb; ipdb.set_trace()
+        err
+    except Exception as err:
+        import ipdb; ipdb.set_trace()
+        err
+
 
 # Main body.
 # .............................................................................
@@ -382,12 +422,33 @@ def countify(seq):
 
 def file_elements(filename):
     '''Take a Python file, return a tuple of contents.'''
-    header    = ''
-    comments  = []
-
-    # Pass #1: use tokenize to find and store comments.
+    header       = ''
+    comments     = []
+    tmp_filename = None
 
     stream = io.FileIO(filename)
+
+    # Pass #0: account for Python 2 vs 3 syntax.
+    # I haven't found another way to detect whether a script uses Python 2 or
+    # 3 syntax other than to try to parse it and test for failure.  We need
+    # to use ast later below, and if an input file needs Python 2, we have to
+    # convert it first.  So we test first and convert at the beginning.
+
+    if assumes_python2(stream):
+        try:
+            # This creates a temporary file that must be deleted later.
+            tmp_filename = convert_python2_file(filename)
+            if tmp_filename:
+                stream = io.FileIO(tmp_filename)
+            else:
+                # We thought it was Python 2 but couldn't convert it.
+                # Something is wrong. Bail.
+                return None
+        except Exception as err:
+            import ipdb; ipdb.set_trace()
+
+    # Pass #1: use tokenize to find and store headers and comments.
+
     tokens = tokenize(stream.readline)
 
     # Look for a header at the top, if any.  There are two common forms in
@@ -408,7 +469,6 @@ def file_elements(filename):
 
     # When the above ends, 'thing' & 'kind' will be the next values to examine.
     # If it's a string, it's assumed to be the file doc string.
-
     # Once we do this, we'll have read the header comment or the doc string and
     # the file position will be immediately after that point.  When we do our
     # 2nd pass, we don't want to read that stuff again.  Back up over the last
@@ -470,6 +530,10 @@ def file_elements(filename):
     elements['variables']  = countify(collector.variables)
     elements['strings']    = countify([clean_plain_text(c) for c in collector.strings])
     elements['calls']      = countify(filtered_calls)
+
+    stream.close()
+    if tmp_filename:
+        os.remove(tmp_filename)
     return elements
 
 
