@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import token
 from tokenize import *
 
@@ -96,56 +97,6 @@ _ignorable_names = [
 
 # Utility classes.
 # .............................................................................
-
-# NameVisitor started as code from https://suhas.org/function-call-ast-python
-# but has since been heavily modified.
-
-class NameVisitor(ast.NodeVisitor):
-    '''Extract the name from a node.'''
-
-    def __init__(self):
-        self._name = deque()
-
-
-    @property
-    def name(self):
-        return '.'.join(self._name)
-
-
-    @name.deleter
-    def name(self):
-        self._name.clear()
-
-
-    def visit_Name(self, node):
-        self._name.appendleft(node.id)
-
-
-    def visit_Call(self, node):
-        if hasattr(node.func, 'attr'):
-            self._name.appendleft(node.func.attr)
-        if hasattr(node.func, 'value'):
-            if hasattr(node.func.value, 'id'):
-                self._name.appendleft(node.func.value.id)
-            elif hasattr(node.func.value, 'attr'):
-                self._name.appendleft(node.func.value.attr)
-            else:
-                # Chained calls like foo().bar().baz()
-                self.generic_visit(node.func.value)
-        elif hasattr(node.func, 'id'):
-            self._name.appendleft(node.func.id)
-
-
-    def visit_Attribute(self, node):
-        # This gets called for variable assignments too.
-        try:
-            self._name.appendleft(node.attr)
-            # Adding 'self' does not really provide much info, so skip it.
-            if node.value.id != 'self':
-                self._name.appendleft(node.value.id)
-        except AttributeError:
-            self.generic_visit(node)
-
 
 class ElementCollector(ast.NodeVisitor):
     '''AST node visitor for creating lists of elements that we care about.'''
@@ -325,6 +276,56 @@ class ElementCollector(ast.NodeVisitor):
                 self._current_class = class_name
                 self.visit(thing)
                 self._current_class = None
+
+
+# NameVisitor started as code from https://suhas.org/function-call-ast-python
+# but has since been heavily modified.
+
+class NameVisitor(ast.NodeVisitor):
+    '''Extract the name from a node.'''
+
+    def __init__(self):
+        self._name = deque()
+
+
+    @property
+    def name(self):
+        return '.'.join(self._name)
+
+
+    @name.deleter
+    def name(self):
+        self._name.clear()
+
+
+    def visit_Name(self, node):
+        self._name.appendleft(node.id)
+
+
+    def visit_Call(self, node):
+        if hasattr(node.func, 'attr'):
+            self._name.appendleft(node.func.attr)
+        if hasattr(node.func, 'value'):
+            if hasattr(node.func.value, 'id'):
+                self._name.appendleft(node.func.value.id)
+            elif hasattr(node.func.value, 'attr'):
+                self._name.appendleft(node.func.value.attr)
+            else:
+                # Chained calls like foo().bar().baz()
+                self.generic_visit(node.func.value)
+        elif hasattr(node.func, 'id'):
+            self._name.appendleft(node.func.id)
+
+
+    def visit_Attribute(self, node):
+        # This gets called for variable assignments too.
+        try:
+            self._name.appendleft(node.attr)
+            # Adding 'self' does not really provide much info, so skip it.
+            if node.value.id != 'self':
+                self._name.appendleft(node.value.id)
+        except AttributeError:
+            self.generic_visit(node)
 
 
 # Utilities.
