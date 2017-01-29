@@ -409,7 +409,8 @@ def convert_python2_file(filename):
     working_filename = full_pathname + '.__casicstmp__'
     cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except',
            '-f', 'exec', '-f', 'funcattrs', '-f', 'unicode', '-f', 'ne',
-           '-f', 'numliterals', '-f', 'paren', '-f', 'repr', working_filename]
+           '-f', 'numliterals', '-f', 'paren', '-f', 'repr', '-f', 'raise',
+           working_filename]
     try:
         # Remove temp file that might have been left over from prior run.
         if os.path.exists(working_filename):
