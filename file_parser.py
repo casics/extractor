@@ -21,7 +21,7 @@ import shutil
 import sys
 import tempfile
 import token
-from tokenize import *
+from   tokenize import *
 
 sys.path.append('../database')
 sys.path.append('../common')
@@ -404,36 +404,25 @@ def convert_python2_file(filename):
     '''Convert Python 2 file to (limited) Python 3.  Returns the file name
     of the file containing the converted code.  The caller must delete this
     file after it's done.'''
-    # When I use --add-suffix with 2to3, I consistently get an error in my
-    # environment. There's some sort of bug.  So, we resort to contortions.
-    full_pathname = os.path.join(os.getcwd(), filename)
-    working_filename = full_pathname + '.__casicstmp__'
+
+    working_file = tempfile.NamedTemporaryFile()
     cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except',
            '-f', 'exec', '-f', 'funcattrs', '-f', 'unicode', '-f', 'ne',
            '-f', 'numliterals', '-f', 'paren', '-f', 'repr', '-f', 'raise',
-           working_filename]
+           working_file.name]
     try:
-        # Remove temp file that might have been left over from prior run.
-        if os.path.exists(working_filename):
-            os.remove(working_filename)
-        shutil.copyfile(full_pathname, working_filename)
+        shutil.copyfile(os.path.join(os.getcwd(), filename), working_file.name)
         (status, output, errors) = shell_cmd(cmd)
         if status == 0:
-            return working_filename
-        elif os.path.exists(working_filename):
-            os.remove(working_filename)
-        return None
-    except OSError as err:
-        msg('Failed to convert {}'.format(filename))
-        msg(err)
-        if os.path.exists(working_filename):
-            os.remove(working_filename)
+            return working_file
+        elif os.path.exists(working_file.name):
+            working_file.close()
         return None
     except Exception as err:
         msg('Exception trying to convert {}'.format(filename))
         msg(err)
-        if os.path.exists(working_filename):
-            os.remove(working_filename)
+        if os.path.exists(working_file.name):
+            working_file.close()
         return None
 
 
@@ -446,15 +435,15 @@ def convert_python2_file(filename):
 
 def file_elements(filename):
     '''Take a Python file, return a tuple of contents.'''
-    header       = ''
-    comments     = []
-    tmp_filename = None
-    full_path    = os.getcwd() + filename
+    header    = ''
+    comments  = []
+    tmp_file  = None
+    full_path = os.getcwd() + filename
 
     def cleanup():
         stream.close()
-        if tmp_filename:
-            os.remove(tmp_filename)
+        if tmp_file:
+            tmp_file.close()
 
     # msg(full_path)
 
@@ -472,20 +461,22 @@ def file_elements(filename):
     elements['strings']    = []
     elements['calls']      = []
 
+    # Open the file for reading.  FileIO is needed for the Python 'ast' module.
+
+    stream = io.FileIO(filename)
+
     # Pass #0: account for Python 2 vs 3 syntax.
     # I haven't found another way to detect whether a script uses Python 2 or
     # 3 syntax other than to try to parse it and test for failure.  We need
     # to use ast later below, and if an input file needs Python 2, we have to
     # convert it first.  So we test first and convert at the beginning.
 
-    stream = io.FileIO(filename)
-
     if assumes_python2(stream):
         try:
             # This creates a temporary file that must be deleted later.
-            tmp_filename = convert_python2_file(filename)
-            if tmp_filename:
-                stream = io.FileIO(tmp_filename)
+            tmp_file = convert_python2_file(filename)
+            if tmp_file:
+                stream = io.FileIO(tmp_file.name)
             else:
                 # We thought it was Python 2 but couldn't convert it.
                 # Something is wrong. Bail.
