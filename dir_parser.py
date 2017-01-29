@@ -257,6 +257,29 @@ def probably_text(filename):
 # Quick test driver.
 # .............................................................................
 
+import plac
+
+def run_dir_parser(debug=False, ppr=False, *file):
+    '''Test dir_parser.py.'''
+    if len(file) < 1:
+        raise SystemExit('Need a directory as argument')
+    filename = file[0]
+    if not os.path.exists(filename):
+        raise ValueError('Directory {} not found'.format(filename))
+    e = dir_elements(filename)
+    if debug:
+        import ipdb; ipdb.set_trace()
+    if ppr:
+        import pprint
+        pprint.pprint(e)
+    else:
+        msg(e)
+
+run_dir_parser.__annotations__ = dict(
+    debug = ('drop into ipdb after parsing', 'flag',   'd'),
+    ppr   = ('use pprint to print result',   'flag',   'p'),
+    file  = 'directory to parse',
+)
+
 if __name__ == '__main__':
-    e = dir_elements(sys.argv[1])
-    import ipdb; ipdb.set_trace()
+    plac.call(run_dir_parser)
