@@ -130,7 +130,8 @@ class NameVisitor(ast.NodeVisitor):
             elif hasattr(node.func.value, 'attr'):
                 self._name.appendleft(node.func.value.attr)
             else:
-                import ipdb; ipdb.set_trace()
+                # Chained calls like foo().bar().baz()
+                self.generic_visit(node.func.value)
         elif hasattr(node.func, 'id'):
             self._name.appendleft(node.func.id)
 
@@ -196,13 +197,23 @@ class ElementCollector(ast.NodeVisitor):
         # shadows any instances of the same variable name outside, which
         # means we should count it without regard to whether a variable by
         # the same name already exists.
+        def iterate_tuples(tuple):
+            for var in tuple:
+                if hasattr(var, 'id'):
+                    if not ignorable_name(var.id):
+                        self.variables.append(var.id)
+                elif isinstance(var, ast.Tuple):
+                    iterate_tuples(var.elts)
+                else:
+                    import ipdb; ipdb.set_trace()
+
         if isinstance(node.target, ast.Name):
             if not ignorable_name(node.target.id):
                 self.variables.append(node.target.id)
         elif isinstance(node.target, ast.Tuple):
-            for var in node.target.elts:
-                if not ignorable_name(var.id):
-                    self.variables.append(var.id)
+            iterate_tuples(node.target.elts)
+        else:
+            import ipdb; ipdb.set_trace()
 
 
     def visit_Call(self, node):
@@ -396,7 +407,8 @@ def convert_python2_file(filename):
     # environment. There's some sort of bug.  So, we resort to contortions.
     full_pathname = os.path.join(os.getcwd(), filename)
     working_filename = full_pathname + '.__casicstmp__'
-    cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except', working_filename]
+    cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except',
+           '-f', 'unicode', working_filename]
     try:
         shutil.copyfile(full_pathname, working_filename)
         (status, output, errors) = shell_cmd(cmd)
@@ -426,6 +438,7 @@ def file_elements(filename):
     comments     = []
     tmp_filename = None
 
+    msg(filename)
     stream = io.FileIO(filename)
 
     # Pass #0: account for Python 2 vs 3 syntax.
