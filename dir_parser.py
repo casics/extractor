@@ -215,7 +215,7 @@ def python_file(filename):
     if ext == '':
         # No extension, but might still be a python file.
         try:
-            return 'Python' in magic.from_file(filename).decode('utf-8')
+            return 'Python' in file_magic(filename)
         except Exception as e:
             msg('*** unable to check if {} is a Python file: {}'.format(filename, e))
     return False
@@ -244,7 +244,7 @@ def text_file(filename):
 
 def probably_text(filename):
     try:
-        return 'text' in magic.from_file(filename).decode('utf-8')
+        return 'text' in file_magic(filename)
     except Exception as e:
         # msg('*** unable to check content of {}: {}'.format(filename, e))
         return False
