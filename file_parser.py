@@ -410,6 +410,9 @@ def convert_python2_file(filename):
     cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except',
            '-f', 'unicode', working_filename]
     try:
+        # Remove temp file that might have been left over from prior run.
+        if os.path.exists(working_filename):
+            os.remove(working_filename)
         shutil.copyfile(full_pathname, working_filename)
         (status, output, errors) = shell_cmd(cmd)
         if status == 0:
@@ -418,11 +421,17 @@ def convert_python2_file(filename):
             os.remove(working_filename)
         return None
     except OSError as err:
-        import ipdb; ipdb.set_trace()
-        err
+        msg('Failed to convert {}'.format(filename))
+        msg(err)
+        if os.path.exists(working_filename):
+            os.remove(working_filename)
+        return None
     except Exception as err:
-        import ipdb; ipdb.set_trace()
-        err
+        msg('Exception trying to convert {}'.format(filename))
+        msg(err)
+        if os.path.exists(working_filename):
+            os.remove(working_filename)
+        return None
 
 
 # Main body.
@@ -438,7 +447,7 @@ def file_elements(filename):
     comments     = []
     tmp_filename = None
 
-    msg(filename)
+    # msg(os.getcwd() + filename)
     stream = io.FileIO(filename)
 
     # Pass #0: account for Python 2 vs 3 syntax.
