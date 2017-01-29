@@ -66,11 +66,11 @@ _okay_endings = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
 # Main functions
 # .............................................................................
 
-def extract_text(filename, encoding='utf-8'):
+def extract_text(filename, encoding='utf-8', retried=False):
     name, ext = os.path.splitext(filename.lower())
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
     try:
-        with open(filename, 'r', encoding=encoding) as file:
+        with open(filename, 'r', encoding=encoding, errors='replace') as file:
             if ext in constants.common_puretext_extensions:
                 return clean_plain_text(file.read())
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn', '.mdown']:
@@ -97,16 +97,20 @@ def extract_text(filename, encoding='utf-8'):
                 return None
             # FIXME missing .rdoc, .pod, .wiki, .mediawiki, .creole
     except UnicodeDecodeError:
-        # File does not contain UTF-8 bytes.  Try guessing actual encoding.
-        guess = None
-        with open(filename, 'rb') as f:
-            content = f.read(512)
-            guess = content and chardet.detect(content)
-        if guess and 'encoding' in guess:
-            return extract_text(filename, guess['encoding'])
-        else:
-            msg('*** unconvertible encoding in file {}'.format(filename))
-            return ''
+        # File does use the encoding we tried. Try guessing actual encoding.
+        # But catch if we've been here before, to prevent infinite recursion.
+        if not retried:
+            guess = None
+            with open(filename, 'rb') as f:
+                content = f.read(1024)
+                guess = content and chardet.detect(content)
+            if guess and 'encoding' in guess:
+                if guess['encoding'] == 'ascii':
+                    # Using ascii usually leads to failures. UTF-8 is safer.
+                    guess['encoding'] = 'utf-8'
+                return extract_text(filename, guess['encoding'], True)
+        msg('*** unconvertible encoding in file {}'.format(filename))
+        return ''
     except Exception as e:
         msg('*** unable to extract text from {} file {}: {}'.format(ext, filename, e))
         return ''
