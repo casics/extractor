@@ -168,7 +168,11 @@ def dir_elements(path):
         os.chdir(path)
         contents = []
         for file in files:
-            if empty_file(file):
+            if not os.path.exists(file):
+                # Can happen if something creates a temporary file in-between
+                # time we call os.walk and the time we get to processing file.
+                continue
+            elif empty_file(file):
                 contents.append(file_dict(file, '', None, None))
                 continue
             elif ignorable_file(file):
@@ -254,4 +258,5 @@ def probably_text(filename):
 # .............................................................................
 
 if __name__ == '__main__':
-    pprint.pprint(dir_elements(sys.argv[1]))
+    e = dir_elements(sys.argv[1])
+    import ipdb; ipdb.set_trace()
