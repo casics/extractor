@@ -448,15 +448,36 @@ def file_elements(filename):
     header       = ''
     comments     = []
     tmp_filename = None
+    full_path    = os.getcwd() + filename
 
-    # msg(os.getcwd() + filename)
-    stream = io.FileIO(filename)
+    def cleanup():
+        stream.close()
+        if tmp_filename:
+            os.remove(tmp_filename)
+
+    # msg(full_path)
+
+    # Set up the dictionary.  We may end up returning only part of this
+    # filled out, if we encounter errors along the way.
+
+    elements               = {}
+    elements['header']     = ''
+    elements['comments']   = []
+    elements['docstrings'] = []
+    elements['imports']    = []
+    elements['classes']    = []
+    elements['functions']  = []
+    elements['variables']  = []
+    elements['strings']    = []
+    elements['calls']      = []
 
     # Pass #0: account for Python 2 vs 3 syntax.
     # I haven't found another way to detect whether a script uses Python 2 or
     # 3 syntax other than to try to parse it and test for failure.  We need
     # to use ast later below, and if an input file needs Python 2, we have to
     # convert it first.  So we test first and convert at the beginning.
+
+    stream = io.FileIO(filename)
 
     if assumes_python2(stream):
         try:
@@ -523,31 +544,48 @@ def file_elements(filename):
         except StopIteration:
             break
 
+    # This concludes what we gather without parsing the file into an AST.
+    # Store the header and comments, if any.
+
+    elements['header']     = clean_plain_text(header)
+    elements['comments']   = [clean_plain_text(c) for c in comments]
+
     # Pass #2: pull out remaining elements separately using the AST.  This is
     # inefficient, because we're iterating over the file a 2nd time, but our
     # efforts right now are about getting things to work any way possible.
 
+    # AST parsing failures are possible here, particularly if the file was
+    # converted from Python 2.  Some programs do stuff you can't automatically
+    # convert with 2to3.  If that happens, bail and return what we can.
+
     stream.seek(restart_point)
-    tree = ast.parse(stream.read())
+    try:
+        tree = ast.parse(stream.read())
+    except Exception as err:
+        msg('Failed to parse {}'.format(full_path))
+        cleanup()
+        return elements
+
+    # We were able to parse the file into an AST.
+
     collector = ElementCollector()
     collector.visit(tree)
 
-    # The variables are stored temporarily as paths separated by '|' so that
-    # we can find unique variable name assignments within each function or
-    # class context.  Remove the paths now, leaving just the variable names.
+    # We store the names of variables we find temporarily as paths separated
+    # by '|' so that we can find unique variable name assignments within each
+    # function or class context.  E.g., variable x in function foo is "foo|x".
+    # Remove the paths now, leaving just the variable names.
+    # Also filter the variables to remove things we don't bother with.
+
     unique_var_paths = list(set(collector.variables))
     collector.variables = [x[x.rfind('|')+1:] for x in unique_var_paths]
-
-    # Post-process some of the results from the above.
     filtered_calls = filter_variables(collector.calls, collector.variables)
 
-    # Note: don't uniquify the header.
-    elements              = {}
-    # These are not given frequencies.
-    elements['header']     = clean_plain_text(header)
-    elements['comments']   = [clean_plain_text(c) for c in comments]
+    # We are done.  Do final cleanup and count up frequencies of some things.
+
+    # Note that docstrings don't get frequencies associated with them.
     elements['docstrings'] = [clean_plain_text(c) for c in collector.docstrings]
-    # These are turned into ('string', frequency) tuples.
+    # The rest are turned into ('string', frequency) tuples.
     elements['imports']    = countify(collector.imports)
     elements['classes']    = countify(collector.classes)
     elements['functions']  = countify(collector.functions)
@@ -555,9 +593,7 @@ def file_elements(filename):
     elements['strings']    = countify([clean_plain_text(c) for c in collector.strings])
     elements['calls']      = countify(filtered_calls)
 
-    stream.close()
-    if tmp_filename:
-        os.remove(tmp_filename)
+    cleanup()
     return elements
 
 
