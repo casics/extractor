@@ -16,6 +16,7 @@ import io, keyword
 import math
 import operator
 import os
+import plac
 import re
 import shutil
 import sys
@@ -28,6 +29,7 @@ sys.path.append('../common')
 
 from utils import *
 from text_converter import *
+from logger import *
 
 
 # Global configuration constants.
@@ -156,7 +158,7 @@ class ElementCollector(ast.NodeVisitor):
                 elif isinstance(var, ast.Tuple):
                     iterate_tuples(var.elts)
                 else:
-                    import ipdb; ipdb.set_trace()
+                    error('Unexpected tuple value in visit_For')
 
         if isinstance(node.target, ast.Name):
             if not ignorable_name(node.target.id):
@@ -164,7 +166,7 @@ class ElementCollector(ast.NodeVisitor):
         elif isinstance(node.target, ast.Tuple):
             iterate_tuples(node.target.elts)
         else:
-            import ipdb; ipdb.set_trace()
+            error('Unexpected target type in visit_For')
 
 
     def visit_Call(self, node):
@@ -396,7 +398,9 @@ def assumes_python2(stream):
         # This almost always means that the code is in Python 2.
         return True
     except Exception as err:
-        import ipdb; ipdb.set_trace()
+        log = Logger().get_log()
+        log.error('unexpected problem trying to guess if file is Python 2')
+        log.error(err)
         return False
 
 
@@ -405,22 +409,27 @@ def convert_python2_file(filename):
     of the file containing the converted code.  The caller must delete this
     file after it's done.'''
 
+    log = Logger().get_log()
     working_file = tempfile.NamedTemporaryFile()
     cmd = ['2to3', '-w', '-W', '-n', '-f', 'print', '-f', 'except',
            '-f', 'exec', '-f', 'funcattrs', '-f', 'unicode', '-f', 'ne',
            '-f', 'numliterals', '-f', 'paren', '-f', 'repr', '-f', 'raise',
            working_file.name]
     try:
+        log.debug(cmd)
         shutil.copyfile(os.path.join(os.getcwd(), filename), working_file.name)
         (status, output, errors) = shell_cmd(cmd)
         if status == 0:
+            log.debug('returned without error')
             return working_file
         elif os.path.exists(working_file.name):
             working_file.close()
+        log.debug('returned error code {}'.format(status))
         return None
     except Exception as err:
-        msg('Exception trying to convert {}'.format(filename))
-        msg(err)
+        log = Logger().get_log()
+        log.error('Exception trying to convert {}'.format(filename))
+        log.error(err)
         if os.path.exists(working_file.name):
             working_file.close()
         return None
@@ -435,17 +444,17 @@ def convert_python2_file(filename):
 
 def file_elements(filename):
     '''Take a Python file, return a tuple of contents.'''
+
     header    = ''
     comments  = []
     tmp_file  = None
-    full_path = os.getcwd() + filename
+    full_path = os.path.join(os.getcwd(), filename)
 
     def cleanup():
         stream.close()
         if tmp_file:
+            log.debug('closing {}'.format(tmp_file))
             tmp_file.close()
-
-    # msg(full_path)
 
     # Set up the dictionary.  We may end up returning only part of this
     # filled out, if we encounter errors along the way.
@@ -463,6 +472,8 @@ def file_elements(filename):
 
     # Open the file for reading.  FileIO is needed for the Python 'ast' module.
 
+    log = Logger('file_parser').get_log()
+    log.debug('opening Python file {}'.format(full_path))
     stream = io.FileIO(filename)
 
     # Pass #0: account for Python 2 vs 3 syntax.
@@ -474,18 +485,27 @@ def file_elements(filename):
     if assumes_python2(stream):
         try:
             # This creates a temporary file that must be deleted later.
+            log.debug('attempting to convert from Python 2')
             tmp_file = convert_python2_file(filename)
             if tmp_file:
+                log.debug('conversion successful'.format(full_path))
+                log.debug('closing file {}'.format(full_path))
+                stream.close()
+                log.debug('opening file {}'.format(tmp_file.name))
                 stream = io.FileIO(tmp_file.name)
             else:
                 # We thought it was Python 2 but couldn't convert it.
                 # Something is wrong. Bail.
+                log.debug('conversion failed -- giving up on {}'.format(full_path))
                 return None
         except Exception as err:
-            import ipdb; ipdb.set_trace()
+            log.error('error trying to detected if {} uses Python 2'.format(full_path))
+            log.error(err)
+            return None
 
     # Pass #1: use tokenize to find and store headers and comments.
 
+    log.debug('tokenizing')
     tokens = tokenize(stream.readline)
 
     # Look for a header at the top, if any.  There are two common forms in
@@ -552,9 +572,10 @@ def file_elements(filename):
 
     stream.seek(restart_point)
     try:
+        log.debug('parsing into AST')
         tree = ast.parse(stream.read())
     except Exception as err:
-        msg('Failed to parse {}'.format(full_path))
+        log.error('AST parsing failed; returning what we have so far'.format(full_path))
         cleanup()
         return elements
 
@@ -592,12 +613,15 @@ def file_elements(filename):
 # Quick test interface.
 # .............................................................................
 
-import plac
-
-def run_file_parser(debug=False, ppr=False, *file):
+def run_file_parser(debug=False, ppr=False, loglevel='debug', *file):
     '''Test file_parser.py.'''
     if len(file) < 1:
         raise SystemExit('Need a file as argument')
+    log = Logger('file_parser', console=True).get_log()
+    if debug:
+        log.set_level('debug')
+    else:
+        log.set_level(loglevel)
     filename = file[0]
     if not os.path.exists(filename):
         raise ValueError('File {} not found'.format(filename))
@@ -611,9 +635,10 @@ def run_file_parser(debug=False, ppr=False, *file):
         msg(e)
 
 run_file_parser.__annotations__ = dict(
-    debug = ('drop into ipdb after parsing', 'flag',   'd'),
-    ppr   = ('use pprint to print result',   'flag',   'p'),
-    file  = 'file to parse',
+    debug    = ('drop into ipdb after parsing',     'flag',   'd'),
+    ppr      = ('use pprint to print result',       'flag',   'p'),
+    loglevel = ('logging level: "debug" or "info"', 'option', 'L'),
+    file     = 'file to parse',
 )
 
 if __name__ == '__main__':
