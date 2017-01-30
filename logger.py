@@ -80,11 +80,13 @@ class Logger(metaclass=Singleton):
 
         # Console logger.
         if console:
+            colorlog.escape_codes['lightgreen'] = '\x1b[2m\x1b[32m'
+
             stream_handler = colorlog.StreamHandler()
             stream_handler.setFormatter(colorlog.ColoredFormatter(
                 '%(log_color)s%(asctime)s [%(levelname)s] %(message)s',
                 log_colors={
-                    'DEBUG'    : 'black',
+                    'DEBUG'    : 'lightgreen',
                     'INFO'     : 'green',
                     'WARNING'  : 'yellow',
                     'ERROR'    : 'red',
@@ -123,6 +125,10 @@ class Logger(metaclass=Singleton):
 
     def info(self, msg):
         self._logger.info(msg)
+
+
+    def warn(self, msg):
+        self._logger.warning(msg)
 
 
     def error(self, msg):
