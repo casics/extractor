@@ -48,6 +48,7 @@ from utils import *
 import constants
 from   content_inferencer import *
 from   human_language import *
+from   logger import *
 
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
@@ -69,6 +70,7 @@ _okay_endings = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
 def extract_text(filename, encoding='utf-8', retried=False):
     name, ext = os.path.splitext(filename.lower())
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+    log = Logger().get_log()
     try:
         with open(filename, 'r', encoding=encoding, errors='replace') as file:
             if ext in constants.common_puretext_extensions:
@@ -93,7 +95,7 @@ def extract_text(filename, encoding='utf-8', retried=False):
                 html = textile.textile(file.read())
                 return convert_html(html)
             else:
-                msg('cannot handle {} file'.format(ext))
+                log.info('cannot handle {} file'.format(ext))
                 return None
             # FIXME missing .rdoc, .pod, .wiki, .mediawiki, .creole
     except UnicodeDecodeError:
@@ -109,10 +111,11 @@ def extract_text(filename, encoding='utf-8', retried=False):
                     # Using ascii usually leads to failures. UTF-8 is safer.
                     guess['encoding'] = 'utf-8'
                 return extract_text(filename, guess['encoding'], True)
-        msg('*** unconvertible encoding in file {}'.format(filename))
+        log.error('*** unconvertible encoding in file {}'.format(filename))
         return ''
     except Exception as e:
-        msg('*** unable to extract text from {} file {}: {}'.format(ext, filename, e))
+        log.error('*** unable to extract text from {} file {}: {}'
+                  .format(ext, filename, e))
         return ''
 
 
@@ -212,6 +215,8 @@ def html_from_asciidoc_file(filename):
     '''Convert asciidoc file to HTML.'''
     cmd = ['asciidoctor', '--no-header-footer', '--safe', '--quiet',
            '-o', '-', os.path.join(os.getcwd(), filename)]
+    log = Logger().get_log()
+    log.debug(cmd)
     (status, output, errors) = shell_cmd(cmd)
     if status == 0:
         return output
@@ -224,6 +229,8 @@ def html_from_rtf_file(filename):
     # Wanted to use Python 'pyth', but it's not Python 3 compatible.  Linux
     # 'unrtf' needs to be installed on the system.
     cmd = ['unrtf', os.path.join(os.getcwd(), filename)]
+    log = Logger().get_log()
+    log.debug(cmd)
     (status, output, errors) = shell_cmd(cmd)
     if status == 0:
         return output
