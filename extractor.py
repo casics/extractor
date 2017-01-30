@@ -31,6 +31,11 @@ from file_parser import file_elements
 from dir_parser import dir_elements
 from logger import *
 
+# The following sets up Pyro4 to print full traces when exceptions occur.
+# See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version
+
+sys.excepthook = Pyro4.util.excepthook
+
 
 # Global constants.
 # .............................................................................
@@ -177,13 +182,23 @@ class ExtractorClient(object):
     def get_repo_path(self, id):
         if not isinstance(id, int) and not isinstance(id, str):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return self._extractor.get_repo_path(id)
+        try:
+            return self._extractor.get_repo_path(id)
+        except Exception as err:
+            log.error('Exception: {}'.format(err))
+            log.error('------ Pyro traceback ------')
+            log.error(''.join(Pyro4.util.getPyroTraceback()))
 
 
     def get_dir_contents(self, id):
         if not isinstance(id, int) and not isinstance(id, str):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return self._extractor.get_dir_contents(id)
+        try:
+            return self._extractor.get_dir_contents(id)
+        except Exception as err:
+            log.error('Exception: {}'.format(err))
+            log.error('------ Pyro traceback ------')
+            log.error(''.join(Pyro4.util.getPyroTraceback()))
 
 
 # Entry point
