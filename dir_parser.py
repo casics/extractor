@@ -164,13 +164,14 @@ def dir_elements(path):
         return {'name': filename, 'type': 'file', 'body': body,
                 'text_language': text_lang, 'code_language': code_lang}
 
+    full_path = os.path.join(os.getcwd(), path)
     log = Logger('file_parser', console=True).get_log()
     if not os.path.isdir(path):
-        log.error('Not a directory: {}'.format(path))
-        raise ValueError('Not a directory: {}'.format(path))
+        log.error('Not a directory: {}'.format(full_path))
+        raise ValueError('Not a directory: {}'.format(full_path))
 
     # Recursive directory walker.
-    log.debug('beginning traversal of {}'.format(path))
+    log.debug('beginning traversal of {}'.format(full_path))
     walker = os.walk(path)
 
     # First entry is the current directory, so skip it.
@@ -215,7 +216,7 @@ def dir_elements(path):
         for dir in subdirs:
             contents.append(dir_elements(dir))
 
-        log.debug('finished traversal of {}'.format(path))
+        log.debug('finished traversal of {}'.format(full_path))
         return {'name': path, 'type': 'dir', 'body': contents}
 
 
