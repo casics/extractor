@@ -29,6 +29,7 @@ sys.path.append('../common')
 from utils import *
 from file_parser import file_elements
 from dir_parser import dir_elements
+from logger import *
 
 
 # Global constants.
@@ -36,67 +37,75 @@ from dir_parser import dir_elements
 
 _default_port      = 9999
 _default_repo_root = '/srv/repositories'
-_default_log       = 'extractor.log'
 
 
 # Main body.
 # .............................................................................
 
-def main(server=False, client=False, root=None, logfile=None, key=None,
-         port=_default_port, uri=None, print_config=False):
+def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
+         foreground=False, hostname=None, port=_default_port, root=None,
+         server=False, print_config=False):
+
+    if not key:
+        raise SystemExit('Must provide a crypto key.')
     if server and client:
         raise SystemExit('Cannot use both options -s and -c at the same time.')
     if not server and not client:
         client = True
 
-    if key:
-        hmac = str.encode(key)          # Convert to bytes
+    if client:
+        log = Logger(file=logfile, console=True).get_log()
     else:
-        raise SystemExit('Must provide a crypto key')
+        log = Logger('Pyro4', 'extractor.log', console=foreground).get_log()
+    if loglevel:
+        log.set_level(loglevel)
+    log.debug('main: root = {}, logfile = {}, key = {}, port = {}, uri = {}'
+              .format(root, logfile, key, port, uri))
 
+    hmac = str.encode(key)              # Convert to bytes
     if server:
-        logger = ExtractorLogger(logfile)
         if not root:
             root = _default_repo_root
         if not os.path.isdir(root):
-            logger.fail('Cannot find root dir {}'.format(root))
+            log.fail('Cannot find root dir {}'.format(root))
+        log.info('Root dir is {}'.format(root))
 
-        host = socket.getfqdn()
+        host = hostname if hostname else socket.getfqdn()
         try:
             port = int(port)
             if not (0 < port < 65536):
                 raise ValueError()
         except ValueError:
-            logger.fail('Port number must be an integer between 1 and 65535')
+            log.fail('Port number must be an integer between 1 and 65535')
 
-        logger.info('Forking server on host {}'.format(host))
-        logger.info('Using port number {}'.format(port))
-        logger.info('Using root of repos: {}'.format(root))
-        pid = os.fork()
-        setproctitle.setproctitle(os.path.realpath(__file__))
-        if pid != 0:
-            logger.info('Forked Extractor daemon as process {}'.format(pid))
-            sys.exit()
-        os.setsid()
+        log = Logger('Pyro4').get_log()
+        log.info('Forking server on host {}'.format(host))
+        log.info('Using port number {}'.format(port))
+        log.info('Using root of repos: {}'.format(root))
+        if not foreground:
+            pid = os.fork()
+            setproctitle.setproctitle(os.path.realpath(__file__))
+            if pid != 0:
+                log.info('Forked Extractor daemon as process {}'.format(pid))
+                sys.exit()
+            os.setsid()
         with Pyro4.Daemon(host=host, port=port) as daemon:
             daemon._pyroHmacKey = hmac
-            handler = ExtractorServer(daemon, host, port, root)
+            handler = ExtractorServer(daemon, host, port, root, log)
             uri = daemon.register(handler, 'extractor')
-            logger.info('-'*50)
-            logger.info('uri = {}'.format(uri))
-            msg('-'*60)
-            msg('Daemon running with URI = {}'.format(uri))
-            msg('-'*60)
-            sys.stdout = logger.get_log()
+            log.info('-'*60)
+            log.info('Daemon running with URI = {}'.format(uri))
+            log.info('-'*60)
+            sys.stdout = log.log_stream()
             daemon.requestLoop()
 
     if client:
         if not uri:
             raise SystemExit('Need a URI if running as a client')
 
-        msg('Running as client with URI {}'.format(uri))
+        log.info('Running as client with URI {}'.format(uri))
         if root:
-            msg('Ignoring inapplicable option --root.  Continuing.')
+            log.info('Ignoring inapplicable option --root.  Continuing.')
 
         extractor = Pyro4.Proxy(uri)
         extractor._pyroHmacKey = hmac
@@ -111,39 +120,44 @@ def main(server=False, client=False, root=None, logfile=None, key=None,
 
         IPython.embed(banner1=banner)
 
-    msg('Exiting.')
+    log.info('Exiting.')
 
 
 @Pyro4.expose
 class ExtractorServer(object):
-    def __init__(self, daemon, host, port, repo_root):
+    def __init__(self, daemon, host, port, repo_root, logger):
         self._daemon   = daemon
         self._host     = host
         self._port     = port
         self._root_dir = repo_root
+        self._log      = logger
 
 
     def get_status(self):
+        self._log.info('get_status')
         msg = 'host = {}, port = {}, root = {}'.format(
             self._host, self._port, self._root_dir)
         return(msg)
 
 
     def shutdown(self):
-        msg('Shutdown command received.')
+        self._log.info('Shutdown command received.')
         self._daemon.shutdown()
 
 
     def get_repo_path(self, id):
+        self._log.info('get_repo_path({})'.format(id))
         return generate_path(self._root_dir, id)
 
 
     def get_dir_contents(self, id):
+        self._log.info('get_dir_contents({})'.format(id))
         if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
             path = generate_path(self._root_dir, id)
         elif isinstance(id, str):
             path = os.path.join(self._root_dir, id)
         else:
+            self._log.error('Arg must be an int or a string: {}'.format(id))
             raise ValueError('Arg must be an int or a string: {}'.format(id))
         return dir_elements(path)
 
@@ -171,52 +185,6 @@ class ExtractorClient(object):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
         return self._extractor.get_dir_contents(id)
 
-
-
-# Utilities
-# .............................................................................
-
-class ExtractorLogger(object):
-    quiet   = False
-    logger  = None
-    outlog  = None
-
-    def __init__(self, logfile=None):
-        if logfile and os.path.isfile(logfile):
-            os.rename(logfile, logfile + '.old')
-        self.configure_logging(logfile)
-
-
-    def configure_logging(self, logfile):
-        self.logger = logging.getLogger('Pyro4')
-        self.logger.setLevel(logging.DEBUG)
-        logging.getLogger('Pyro4').addHandler(logging.NullHandler())
-        if logfile:
-            handler = logging.FileHandler(logfile)
-        else:
-            handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.outlog = handler.stream
-
-
-    def info(self, *args):
-        msg = ' '.join(args)
-        self.logger.info(msg)
-
-
-    def fail(self, *args):
-        msg = 'ERROR: ' + ' '.join(args)
-        self.logger.error(msg)
-        self.logger.error('Exiting.')
-        raise SystemExit(msg)
-
-
-    def get_log(self):
-        return self.outlog
-
-
 
 # Entry point
 # .............................................................................
@@ -224,13 +192,16 @@ class ExtractorLogger(object):
 # Plac automatically adds a -h argument for help, so no need to do it here.
 
 main.__annotations__ = dict(
+    key          = ('(required) crypto key',                   'option', 'k'),
     client       = ('act as client',                           'flag',   'c'),
-    root         = ('(server) root directory of repositories', 'option', 'd'),
-    logfile      = ('log file (default: stdout)',              'option', 'l'),
-    port         = ('(server) port to listen on',              'option', 'p'),
-    key          = ('(server) crypto key',                     'option', 'k'),
-    server       = ('act as server',                           'flag',   's'),
+    logfile      = ('log file',                                'option', 'l'),
+    loglevel     = ('log level: "debug" or "info"',            'option', 'L'),
     uri          = ('(client) URI to connect to',              'option', 'u'),
+    foreground   = ('(server) stay in foreground',             'flag',   'f'),
+    hostname     = ('(server) hostname',                       'option', 'n'),
+    port         = ('(server) port to listen on',              'option', 'p'),
+    root         = ('(server) root directory of repositories', 'option', 'r'),
+    server       = ('act as server',                           'flag',   's'),
 )
 
 if __name__ == '__main__':
