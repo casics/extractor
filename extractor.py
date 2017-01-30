@@ -138,25 +138,29 @@ class ExtractorServer(object):
         self._log      = logger
 
 
+    def _log_action(self, msg):
+        self._log.info('INVOKED: ' + msg)
+
+
     def get_status(self):
-        self._log.info('get_status')
+        self._log_action('get_status')
         msg = 'host = {}, port = {}, root = {}'.format(
             self._host, self._port, self._root_dir)
         return(msg)
 
 
     def shutdown(self):
-        self._log.info('Shutdown command received.')
+        self._log_action('shutdown')
         self._daemon.shutdown()
 
 
     def get_repo_path(self, id):
-        self._log.info('get_repo_path({})'.format(id))
+        self._log_action('get_repo_path({})'.format(id))
         return generate_path(self._root_dir, id)
 
 
     def get_dir_contents(self, id):
-        self._log.info('get_dir_contents({})'.format(id))
+        self._log_action('get_dir_contents({})'.format(id))
         if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
             path = generate_path(self._root_dir, id)
         elif isinstance(id, str):
