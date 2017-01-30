@@ -216,7 +216,7 @@ def html_from_asciidoc_file(filename):
     cmd = ['asciidoctor', '--no-header-footer', '--safe', '--quiet',
            '-o', '-', os.path.join(os.getcwd(), filename)]
     log = Logger().get_log()
-    log.debug(cmd)
+    log.debug(' '.join(cmd))
     (status, output, errors) = shell_cmd(cmd)
     if status == 0:
         return output
@@ -230,7 +230,7 @@ def html_from_rtf_file(filename):
     # 'unrtf' needs to be installed on the system.
     cmd = ['unrtf', os.path.join(os.getcwd(), filename)]
     log = Logger().get_log()
-    log.debug(cmd)
+    log.debug(' '.join(cmd))
     (status, output, errors) = shell_cmd(cmd)
     if status == 0:
         return output
