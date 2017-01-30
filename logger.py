@@ -49,36 +49,20 @@ class Logger(metaclass=Singleton):
     _logfile = None
     _outlog  = None
 
-    def __init__(self, name=None, file=None):
+    def __init__(self, name=None, file=None, console=False):
         if self._logger:
             return
         if not name:
-            name = sys.argv[0] if len(sys.argv) > 1 else 'log.out'
+            name = sys.argv[0] if len(sys.argv) > 1 else 'log'
+            name = name[:name.rfind('.')]
         if not file:
             file = name + '.log'
         if os.path.isfile(file):
             os.rename(file, file + '.old')
-        self.configure_logging(name, file)
+        self.configure_logging(name, file, console)
 
 
-    def configure_logging(self, name, file):
-        # Console logger.
-        stream_handler = colorlog.StreamHandler()
-        stream_handler.setFormatter(colorlog.ColoredFormatter(
-            '%(log_color)s%(asctime)s [%(levelname)s] %(message)s',
-            log_colors={
-                'DEBUG'    : 'black',
-                'INFO'     : 'green',
-                'WARNING'  : 'yellow',
-                'ERROR'    : 'red',
-                'CRITICAL' : 'red,bg_white',
-            },
-            style='%'
-        ))
-        self._logger = colorlog.getLogger(name)
-        self._logger.addHandler(stream_handler)
-        self._logger.setLevel(logging.INFO)
-
+    def configure_logging(self, name, file, console):
         # File logger.
         self._logfile  = file
         self._logger   = logging.getLogger(name)
@@ -88,8 +72,28 @@ class Logger(metaclass=Singleton):
         self._logger.addHandler(file_handler)
         self._outlog   = file_handler.stream
 
+        # Default logging level.
+        self._logger.setLevel(logging.INFO)
+
         # Special handling for Pyro4: turn off its handler b/c we have ours.
         logging.getLogger('Pyro4').addHandler(logging.NullHandler())
+
+        # Console logger.
+        if console:
+            stream_handler = colorlog.StreamHandler()
+            stream_handler.setFormatter(colorlog.ColoredFormatter(
+                '%(log_color)s%(asctime)s [%(levelname)s] %(message)s',
+                log_colors={
+                    'DEBUG'    : 'black',
+                    'INFO'     : 'green',
+                    'WARNING'  : 'yellow',
+                    'ERROR'    : 'red',
+                    'CRITICAL' : 'red,bg_white',
+                },
+                style='%'
+            ))
+            self._logger = colorlog.getLogger(name)
+            self._logger.addHandler(stream_handler)
 
 
     def get_log(self):
