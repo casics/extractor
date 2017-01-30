@@ -127,7 +127,7 @@ class Logger(metaclass=Singleton):
         self._logger.info(msg)
 
 
-    def error(self, msg):
+    def error(self, *args):
         '''Ignorable error.'''
         msg = ' '.join(args)
         self._logger.error(msg)
