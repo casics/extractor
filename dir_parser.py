@@ -139,6 +139,13 @@ from file_parser import file_elements
 from content_inferencer import *
 from text_converter import extract_text
 from human_language import *
+from logger import *
+
+
+# Constants variables.
+# .............................................................................
+
+log = None
 
 
 # Constants for this module.
@@ -157,10 +164,15 @@ def dir_elements(path):
         return {'name': filename, 'type': 'file', 'body': body,
                 'text_language': text_lang, 'code_language': code_lang}
 
+    log = Logger('file_parser', console=True).get_log()
     if not os.path.isdir(path):
+        log.error('Not a directory: {}'.format(path))
         raise ValueError('Not a directory: {}'.format(path))
+
     # Recursive directory walker.
+    log.debug('beginning traversal of {}'.format(path))
     walker = os.walk(path)
+
     # First entry is the current directory, so skip it.
     (this_dir, subdirs, files) = next(walker)
     with cwd_preserved():
@@ -171,14 +183,18 @@ def dir_elements(path):
             if not os.path.exists(file):
                 # Can happen if something creates a temporary file in-between
                 # time we call os.walk and the time we get to processing file.
+                log.debug('file does not exist: {}'.format(file))
                 continue
             elif empty_file(file):
+                log.debug('empty file: {}'.format(file))
                 contents.append(file_dict(file, '', None, None))
                 continue
             elif ignorable_file(file):
+                log.debug('ignorable file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
             elif python_file(file):
+                log.debug('Python file: {}'.format(file))
                 elements = file_elements(file)
                 lang = 'en'
                 if elements:
@@ -187,15 +203,19 @@ def dir_elements(path):
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
             elif text_file(file) and not excessively_large_file(file):
+                log.debug('text file: {}'.format(file))
                 text = extract_text(file)
                 if text:
                     lang = human_language(text)
                     contents.append(file_dict(file, text, None, lang))
                     continue
             # Fall-back for cases we don't handle.
+            log.debug('unrecognized file: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
             contents.append(dir_elements(dir))
+
+        log.debug('finished traversal of {}'.format(path))
         return {'name': path, 'type': 'dir', 'body': contents}
 
 
@@ -221,7 +241,8 @@ def python_file(filename):
         try:
             return 'Python' in file_magic(filename)
         except Exception as e:
-            msg('*** unable to check if {} is a Python file: {}'.format(filename, e))
+            log.error('unable to check if {} is a Python file: {}'.format(filename, e))
+            log.error(e)
     return False
 
 
@@ -238,7 +259,8 @@ def text_file(filename):
     if readme_file(filename):
         return True
     name, ext = os.path.splitext(filename.lower())
-    if ext in constants.common_puretext_extensions or ext in constants.common_text_markup_extensions:
+    if (ext in constants.common_puretext_extensions
+        or ext in constants.common_text_markup_extensions):
         return True
     elif not is_code_file(filename):
         return probably_text(filename)
@@ -250,7 +272,8 @@ def probably_text(filename):
     try:
         return 'text' in file_magic(filename)
     except Exception as e:
-        # msg('*** unable to check content of {}: {}'.format(filename, e))
+        log.error('error trying to get magic for {}'.format(filename))
+        log.error(e)
         return False
 
 
@@ -259,10 +282,15 @@ def probably_text(filename):
 
 import plac
 
-def run_dir_parser(debug=False, ppr=False, *file):
+def run_dir_parser(debug=False, ppr=False, loglevel='debug', *file):
     '''Test dir_parser.py.'''
     if len(file) < 1:
         raise SystemExit('Need a directory as argument')
+    log = Logger('dir_parser')
+    if debug:
+        log.set_level('debug')
+    else:
+        log.set_level(loglevel)
     filename = file[0]
     if not os.path.exists(filename):
         raise ValueError('Directory {} not found'.format(filename))
@@ -276,9 +304,10 @@ def run_dir_parser(debug=False, ppr=False, *file):
         msg(e)
 
 run_dir_parser.__annotations__ = dict(
-    debug = ('drop into ipdb after parsing', 'flag',   'd'),
-    ppr   = ('use pprint to print result',   'flag',   'p'),
-    file  = 'directory to parse',
+    debug    = ('drop into ipdb after parsing',     'flag',   'd'),
+    ppr      = ('use pprint to print result',       'flag',   'p'),
+    loglevel = ('logging level: "debug" or "info"', 'option', 'L'),
+    file     = 'directory to parse',
 )
 
 if __name__ == '__main__':
