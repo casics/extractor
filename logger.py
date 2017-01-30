@@ -117,25 +117,21 @@ class Logger(metaclass=Singleton):
             self.error('Ignoring unrecognized level: {}'.format(level))
 
 
-    def debug(self, *args):
-        msg = ' '.join(args)
+    def debug(self, msg):
         self._logger.debug(msg)
 
 
-    def info(self, *args):
-        msg = ' '.join(args)
+    def info(self, msg):
         self._logger.info(msg)
 
 
-    def error(self, *args):
+    def error(self, msg):
         '''Ignorable error.'''
-        msg = ' '.join(args)
         self._logger.error(msg)
 
 
-    def fail(self, *args):
+    def fail(self, msg):
         '''Unignorable error.'''
-        msg = 'ERROR: ' + ' '.join(args)
         self._logger.critical(msg)
         self._logger.critical('Exiting.')
         raise SystemExit(msg)
