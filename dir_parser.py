@@ -211,7 +211,7 @@ def dir_elements(path):
                     contents.append(file_dict(file, text, None, lang))
                     continue
             # Fall-back for cases we don't handle.
-            log.debug('unrecognized file: {}'.format(file))
+            log.warn('unrecognized file: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
             contents.append(dir_elements(dir))
