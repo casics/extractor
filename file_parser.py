@@ -505,7 +505,7 @@ def file_elements(filename):
 
     # Pass #1: use tokenize to find and store headers and comments.
 
-    log.debug('tokenizing')
+    log.debug('tokenizing {}'.format(full_path))
     tokens = tokenize(stream.readline)
 
     # Look for a header at the top, if any.  There are two common forms in
