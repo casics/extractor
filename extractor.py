@@ -119,8 +119,8 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
 
         banner = '''Available commands:
     extractor.get_status()
-    extractor.get_dir_contents(id)
     extractor.get_repo_path(id)
+    extractor.get_elements(id)
 '''
 
         IPython.embed(banner1=banner)
@@ -159,8 +159,8 @@ class ExtractorServer(object):
         return generate_path(self._root_dir, id)
 
 
-    def get_dir_contents(self, id):
-        self._log_action('get_dir_contents({})'.format(id))
+    def get_elements(self, id):
+        self._log_action('get_elements({})'.format(id))
         if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
             path = generate_path(self._root_dir, id)
         elif isinstance(id, str):
@@ -194,11 +194,11 @@ class ExtractorClient(object):
             log.error(''.join(Pyro4.util.getPyroTraceback()))
 
 
-    def get_dir_contents(self, id):
+    def get_elements(self, id):
         if not isinstance(id, int) and not isinstance(id, str):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
         try:
-            return self._extractor.get_dir_contents(id)
+            return self._extractor.get_elements(id)
         except Exception as err:
             log.error('Exception: {}'.format(err))
             log.error('------ Pyro traceback ------')
