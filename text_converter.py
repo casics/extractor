@@ -127,18 +127,21 @@ _rst_tags = r':param|:return|:type|:rtype'
 def clean_plain_text(text):
     '''Do limited cleaning of text that appears in Python code.'''
 
-    # Don't bother if it's not written in English.
-    if human_language(text) != 'en':
+    # Don't bother if it's not written in a Western-style language.
+    if human_language(text) not in ['en', 'fr', 'cs', 'cu', 'cy', 'da', 'de',
+                                    'es', 'fi', 'fr', 'ga', 'hu', 'hy', 'is',
+                                    'it', 'la', 'nb', 'nl', 'no', 'pl', 'pt',
+                                    'ro', 'sk', 'sl', 'sv', 'tr', 'uk', 'eo']:
         return text
 
     # Get rid of funky Unicode characters
     text = unicodedata.normalize('NFKD', text)
 
     # Remove obvious divider lines, like lines of repeated dashes.
-    text = re.sub(r'^[-=_.]+$', ' ', text, flags=re.MULTILINE)
+    text = re.sub(r'^\W*[-=_.+^*#]{2,}\W*$', ' ', text, flags=re.MULTILINE)
 
     # Compress multiple blank lines.
-    text = re.sub(r'\n\n\n+', '\n\n', text)
+    text = re.sub(r'\n[ \t]*\n\n+', '\n\n', text)
 
     # Turn single newlines into spaces.
     text = re.sub(r'(?<!\n)\n(?=[^\n])', ' ', text, flags=re.MULTILINE)
