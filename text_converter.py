@@ -138,7 +138,7 @@ def clean_plain_text(text):
     text = unicodedata.normalize('NFKD', text)
 
     # Remove obvious divider lines, like lines of repeated dashes.
-    text = re.sub(r'^\W*[-=_.+^*#]{2,}\W*$', ' ', text, flags=re.MULTILINE)
+    text = re.sub(r'^\W*[-=_.+^*#~]{2,}\W*$', ' ', text, flags=re.MULTILINE)
 
     # Compress multiple blank lines.
     text = re.sub(r'\n[ \t]*\n\n+', '\n\n', text)
@@ -252,9 +252,24 @@ def html_from_rtf_file(filename):
 
 def convert_html(html):
     '''Use BeautifulSoup's API to modify the text of some elements, so that
-    the result is more easily parsed into sentences by later tools.
+    the result is more easily parsed into sentences by later tools.  Script
+    elements and HTML comments are removed, as a <pre> and <img> elements.
     '''
     soup = bs4.BeautifulSoup(html, 'lxml')
+
+    import ipdb; ipdb.set_trace()
+
+    # Remove DOCTYPE.
+    if isinstance(soup.contents[0], bs4.Doctype):
+        soup.contents[0].extract()
+
+    # Remove scripts.
+    for el in soup.find_all('script'):
+        el.extract()
+
+    # Remove comments.
+    for el in soup.find_all(text=lambda text:isinstance(text, bs4.Comment)):
+        el.extract()
 
     # If the input is not in English, we're not going to do NL processing on
     # it anyway and we can skip the rest of this process.  For speed, this
