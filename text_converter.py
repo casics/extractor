@@ -255,31 +255,30 @@ def convert_html(html):
     the result is more easily parsed into sentences by later tools.  Script
     elements and HTML comments are removed, as a <pre> and <img> elements.
     '''
+    def ignorable_type(el):
+        return type(el) in [bs4.Doctype, bs4.Comment, bs4.ProcessingInstruction]
+
     soup = bs4.BeautifulSoup(html, 'lxml')
-
-    # Remove DOCTYPE.
-    if isinstance(soup.contents[0], bs4.Doctype):
-        soup.contents[0].extract()
-
-    # Remove scripts.
-    for el in soup.find_all('script'):
-        el.extract()
-
-    # Remove comments.
-    for el in soup.find_all(text=lambda text:isinstance(text, bs4.Comment)):
-        el.extract()
 
     # If the input is not in English, we're not going to do NL processing on
     # it anyway and we can skip the rest of this process.  For speed, this
     # check only considers the first few paragraphs.
     paragraphs = soup.find_all('p')
-    p_text = ''.join(p.text for p in paragraphs[1:3])
+    p_text = ''.join(p.text for p in paragraphs[1:5])
     if p_text and human_language(p_text) != 'en':
         return unsoupify(soup)
 
+    # Remove DOCTYPEs, processing instructions, & comments.
+    for el in soup.find_all(text=lambda text: ignorable_type(text)):
+        el.extract()
+
+    # Remove scripts.
+    for el in soup.find_all('script'):
+        el.extract()
+
+    # Ignore pre and img because we don't have a good way of dealing with them.
     for ignorable in ['pre', 'img']:
         for el in soup.find_all(ignorable):
-            # Ignore stuff we can't convert to sentences
             el.extract()
 
     for htype in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
