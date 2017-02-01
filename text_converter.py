@@ -257,8 +257,6 @@ def convert_html(html):
     '''
     soup = bs4.BeautifulSoup(html, 'lxml')
 
-    import ipdb; ipdb.set_trace()
-
     # Remove DOCTYPE.
     if isinstance(soup.contents[0], bs4.Doctype):
         soup.contents[0].extract()
