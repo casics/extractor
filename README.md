@@ -8,7 +8,7 @@ The goal of Extractor is to extract text and features from files.  It does _some
 The format of the data
 ----------------------
 
-The format of the JSON structure is simple and recursive.  Each element is a dictionary with at least the following key-value pairse: the key `'name'` having as its associated value the name of a file or directory, the key `'type'` having as its value either `'dir'` or `'file'`, and the key `'body'` containing the contents of the file or directory.  In the case of files, the dictionary has two additional keys: `'text_language'`, for the predominant human language found in the text (based on the file header and comments), and `'code_language'`, for the language of the program (if the file represents code).  In summary:
+The format of the JSON structure is simple and recursive.  Each element is a dictionary with at least the following key-value pairs: the key `'name'` having as its associated value the name of a file or directory, the key `'type'` having as its value either `'dir'` or `'file'`, and the key `'body'` containing the contents of the file or directory.  In the case of files, the dictionary has two additional keys: `'text_language'`, for the predominant human language found in the text (based on the file header and comments), and `'code_language'`, for the language of the program (if the file represents code).  In summary:
 
 * If an item is a directory, the dictionary looks like this:
 
