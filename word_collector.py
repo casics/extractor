@@ -76,6 +76,9 @@ def all_words(elements, filetype='all'):
         if ignorable_filename(elements['name']):
             log.debug('Skipping ignorable file: {}'.format(elements['name']))
             return []
+        elif elements['body'] != None and len(elements['body']) == 0:
+            log.debug('Skipping empty file: {}'.format(elements['name']))
+            return []
         elif not elements['text_language']:
             log.debug('Skipping unhandled file type: {}'.format(elements['name']))
             return []
