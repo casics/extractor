@@ -71,4 +71,20 @@ common_ignorable_files = [
     '.*.swp',
     '.bak',
     '.pyc',
+    '.config',
+    '.ds_store',
+    '.editorconfig',
+    '.gitattributes',
+    '.gitconfig',
+    '.gitignore',
+    '.gitmodules',
+]
+
+common_unhandled_files = [
+    'build.xml',
+    'capfile',
+    'gemfile',
+    'makefile',
+    'pom',
+    'rakefile',
 ]
