@@ -194,13 +194,19 @@ def dir_elements(path):
                 log.debug('ignorable file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
+            elif unhandled_file(file):
+                log.debug('unhandled file: {}'.format(file))
+                contents.append(file_dict(file, None, None, None))
+                continue
             elif python_file(file):
                 log.debug('Python file: {}'.format(file))
                 elements = file_elements(file)
                 lang = 'en'
                 if elements:
-                    chunks = [elements['header']] + elements['comments']
-                    lang = majority_language(chunks)
+                    strings = [x[0] for x in elements['strings']]
+                    comments = elements['comments']
+                    header = [elements['header']]
+                    lang = majority_language(header + comments + strings)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
             elif text_file(file) and not excessively_large_file(file):
@@ -231,6 +237,10 @@ def ignorable_file(filename):
     return (not os.path.isfile(filename)
             or os.path.getsize(filename) > _extreme_max_file_size
             or any(fnmatch(filename, pat) for pat in constants.common_ignorable_files))
+
+
+def unhandled_file(filename):
+    return filename.lower() in constants.common_unhandled_files
 
 
 def python_file(filename):
