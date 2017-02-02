@@ -1,14 +1,39 @@
 Extractor
 ===========
 
-This provides a network server (_Extractor_) that is meant to run on the repository server.  Given a repository id, it returns a JSON data structure containing a highly processed and condensed version of the directory contents of that repository.  The network communication protocol is implemented using [Pyro4](https://pythonhosted.org/Pyro4/), a very easy-to-use Python RPC library.
+This provides a network server (_Extractor_) that is meant to run on the repository server.  Given a repository id, it can return different extracted text and features from our cached copy of the repository.  The network communication protocol is implemented using [Pyro4](https://pythonhosted.org/Pyro4/), a very easy-to-use Python RPC library.
 
-The goal of Extractor is to extract text and features from files.  It does _some_ generic cleanup of what it finds, to produce a result that (hopefully) subsequent stages can use as a more effective starting point for different processes.  Extractor purposefully does not tokenize sentences or do heavier NL preprocessing.
+The goal of Extractor is to extract text and features from files.  It does _some_ generic cleanup of what it finds, to produce a result that (hopefully) subsequent stages can use as a more effective starting point for different processes.
 
-The format of the data
-----------------------
+The formats of the text data
+----------------------------
 
-The format of the JSON structure is simple and recursive.  Each element is a dictionary with at least the following key-value pairs: the key `'name'` having as its associated value the name of a file or directory, the key `'type'` having as its value either `'dir'` or `'file'`, and the key `'body'` containing the contents of the file or directory.  In the case of files, the dictionary has two additional keys: `'text_language'`, for the predominant human language found in the text (based on the file header and comments), and `'code_language'`, for the language of the program (if the file represents code).  In summary:
+The extractor `get_all_words(...)` function returns a list of textual words found in files in the repository.  It currently only understands English plain-text files, files that can be converted to plain text (such as HTML and Markdown), and Python code files.  It takes a repository identifier and an optional argument to tell it to limit consideration to only text or code files:
+
+* `get_all_words(id)`: return a list of all words in both text and code files.
+* `get_all_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
+* `get_all_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
+
+For text files, it automatically converts some structured text files into plain text.  These are currently: HTML, Markdown, AsciiDoc, reStructured Text, RTF, and Textile.  For code files, it uses text it finds in the (1) file header (or file docstring, in the case of Python), (2) comments in the file, and (3) documentation strings on classes and functions.
+
+The list of words is processed to a limited extent.  The transformations are:
+
+* Tokenize sentences using NTLK's `PunktSentenceTokenizer`
+* Remove URLs and email addresses
+* Remove words that don't have any letters 
+* Split words that have certain characters such as `/` and `_`
+* Perform naive camel case splitting: only look for transitions from lower case to upper case, except for the first character in the string. This transforms `'fooBarBaz'` to `'foo'`, `'Bar'`, `'Baz'` but leaves things like `HTTPmodule` untouched.
+* Lower-case words only if they are in title case, and leave all others alone. This changes `'Bar'` to `'bar'` but leaves things like `'HTTP'` alone.
+
+The processes above are intended to balance the risk of incorrectly interpreting a word or term, with the need to normalize the text to _some_ degree.
+
+
+The format of the file/directory elements data
+----------------------------------------------
+
+The Extractor function `get_elements(...)` returns a dictionary representation of all the files and subdirectories in a repository.
+
+The format of the structure is simple and recursive.  Each element is a dictionary with at least the following key-value pairs: the key `'name'` having as its associated value the name of a file or directory, the key `'type'` having as its value either `'dir'` or `'file'`, and the key `'body'` containing the contents of the file or directory.  In the case of files, the dictionary has two additional keys: `'text_language'`, for the predominant human language found in the text (based on the file header and comments), and `'code_language'`, for the language of the program (if the file represents code).  In summary:
 
 * If an item is a directory, the dictionary looks like this:
 
@@ -50,6 +75,9 @@ The API provided by Extractor consists of a handful of methods on the RPC endpoi
 The values of `THE_KEY` and `THE_URI` are not stored anywhere and must be communicated separately.  Once the interactive interface starts up (it's just a normal IPython loop), the object `extractor` is the handle to the RPC interface.  The following are the available methods:
 
 * `extractor.get_dir_content(ID)` returns the structure discussed above for the repository whose identifier is `ID`.
+* `extractor.get_all_words(id)`: return a list of all words in both text and code files.
+* `extractor.get_all_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
+* `extractor.get_all_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
 * `extractor.get_repo_path(ID)` returns a single string, the repository path, for a repository whose identifier is `ID`.
 * `extractor.get_status()` returns a string with some information about the status of the server
 
