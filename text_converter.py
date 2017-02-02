@@ -196,7 +196,7 @@ def tokenize_text(seq):
     # Tokenize each sentence individually.
     text = [nltk.word_tokenize(sent) for sent in text]
 
-    # Remove terms that don't any letters in them.
+    # Remove terms that don't have any letters in them.
     sentences = []
     for sent in text:
         sentences.append([word for word in sent if re.search(r'[a-zA-Z]', word)])
@@ -205,7 +205,7 @@ def tokenize_text(seq):
     sentences = [[re.sub('["`\']', '', word) for word in sent] for sent in sentences]
 
     # Remove blanks.
-    sentences = filter(None, sentences)
+    sentences = [x for x in sentences if x]
 
     # Done.
     return sentences
