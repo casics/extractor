@@ -72,21 +72,23 @@ def all_words(elements, filetype='all'):
         log.debug('Missing "body" key in dictionary')
         return None
     words = []
-    for item in elements['body']:
-        if item['type'] == 'dir':
-            words.append(all_words(item['body']))
-        else:
-            if ignorable_filename(item['name']):
-                log.debug('Skipping ignorable file: {}'.format(item['name']))
-                continue
-            elif item['text_language'] not in ['en', 'unknown']:
-                log.info('Skipping non-English file {}'.format(item['name']))
-                continue
-
-            if filetype in ['text', 'all'] and not item['code_language']:
-                words = words + extract_text_words(item['body'])
-            if filetype in ['code', 'all'] and item['code_language']:
-                words = words + extract_code_words(item['body'])
+    if elements['type'] == 'file':
+        if ignorable_filename(elements['name']):
+            log.debug('Skipping ignorable file: {}'.format(elements['name']))
+            return []
+        elif not elements['text_language']:
+            log.debug('Skipping unhandled file type: {}'.format(elements['name']))
+            return []
+        elif elements['text_language'] not in ['en', 'unknown']:
+            log.info('Skipping non-English file {}'.format(elements['name']))
+            return []
+        if filetype in ['text', 'all'] and not elements['code_language']:
+            words = words + extract_text_words(elements['body'])
+        if filetype in ['code', 'all'] and elements['code_language']:
+            words = words + extract_code_words(elements['body'])
+    else:
+        for item in elements['body']:
+            words = words + all_words(item)
     words = [w for w in words if w]
     return words
 
