@@ -112,11 +112,11 @@ def extract_text(filename, encoding='utf-8', retried=False):
                     guess['encoding'] = 'utf-8'
                 return extract_text(filename, guess['encoding'], True)
         log.error('*** unconvertible encoding in file {}'.format(filename))
-        return ''
+        return []
     except Exception as e:
         log.error('*** unable to extract text from {} file {}: {}'
                   .format(ext, filename, e))
-        return ''
+        return []
 
 
 _common_ignored = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
