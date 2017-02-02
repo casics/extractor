@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import alphabet_detector
 import bs4
 import chardet
 from   datetime import datetime
