@@ -30,6 +30,7 @@ from utils import *
 from file_parser import file_elements
 from dir_parser import dir_elements
 from logger import *
+from word_collector import *
 
 # The following sets up Pyro4 to print full traces when exceptions occur.
 # See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version
@@ -121,6 +122,7 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
     extractor.get_status()
     extractor.get_repo_path(id)
     extractor.get_elements(id)
+    extractor.get_all_words(id, filetype)
 '''
 
         IPython.embed(banner1=banner)
@@ -142,16 +144,16 @@ class ExtractorServer(object):
         self._log.info('INVOKED: ' + msg)
 
 
+    def shutdown(self):
+        self._log_action('shutdown')
+        self._daemon.shutdown()
+
+
     def get_status(self):
         self._log_action('get_status')
         msg = 'host = {}, port = {}, root = {}'.format(
             self._host, self._port, self._root_dir)
         return(msg)
-
-
-    def shutdown(self):
-        self._log_action('shutdown')
-        self._daemon.shutdown()
 
 
     def get_repo_path(self, id):
@@ -171,6 +173,12 @@ class ExtractorServer(object):
         return dir_elements(path)
 
 
+    def get_all_words(self, id, filetype='all'):
+        self._log_action('get_all_words({}, filetype="{}")'.format(id, filetype))
+        elements = self.get_elements(id)
+        return all_words(elements, filetype)
+
+
 class ExtractorClient(object):
     def __init__(self, uri, key):
         self._uri = uri
@@ -179,13 +187,17 @@ class ExtractorClient(object):
         self._extractor._pyroHmacKey = str.encode(key)    # Convert to bytes
 
 
+    def sanity_check_id(self, id):
+        if not isinstance(id, int) and not isinstance(id, str):
+            raise ValueError('Arg must be an int or a string: {}'.format(id))
+
+
     def get_status(self):
         return self._extractor.get_status()
 
 
     def get_repo_path(self, id):
-        if not isinstance(id, int) and not isinstance(id, str):
-            raise ValueError('Arg must be an int or a string: {}'.format(id))
+        sanity_check_id(id)
         try:
             return self._extractor.get_repo_path(id)
         except Exception as err:
@@ -195,14 +207,24 @@ class ExtractorClient(object):
 
 
     def get_elements(self, id):
-        if not isinstance(id, int) and not isinstance(id, str):
-            raise ValueError('Arg must be an int or a string: {}'.format(id))
+        sanity_check_id(id)
         try:
             return self._extractor.get_elements(id)
         except Exception as err:
             log.error('Exception: {}'.format(err))
             log.error('------ Pyro traceback ------')
             log.error(''.join(Pyro4.util.getPyroTraceback()))
+
+
+    def get_all_words(self, id, filetype='all'):
+        sanity_check_id(id)
+        try:
+            return self._extractor.get_all_words(id, filetype)
+        except Exception as err:
+            log.error('Exception: {}'.format(err))
+            log.error('------ Pyro traceback ------')
+            log.error(''.join(Pyro4.util.getPyroTraceback()))
+
 
 
 # Entry point
