@@ -176,6 +176,18 @@ class ElementCollector(ast.NodeVisitor):
             self.calls.append(callvisitor.name)
         for thing in node.args:
             self.visit(thing)
+        for thing in node.keywords:
+            name = thing.arg
+            if not ignorable_name(name):
+                path = []
+                if self._current_function:
+                    path.append(self._current_function)
+                elif self._current_class:
+                    path.append(self._current_class)
+                path.append(name)
+                arg_name = '.'.join(path)
+                self.functions.append(arg_name)
+            self.visit(thing.value)
 
 
     def visit_FunctionDef(self, node):
