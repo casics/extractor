@@ -95,6 +95,8 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
                 log.info('Forked Extractor daemon as process {}'.format(pid))
                 sys.exit()
             os.setsid()
+        Pyro4.config.DETAILED_TRACEBACK = True
+        Pyro4.config.COMMTIMEOUT = 0.0
         with Pyro4.Daemon(host=host, port=port) as daemon:
             daemon._pyroHmacKey = hmac
             handler = ExtractorServer(daemon, host, port, root, log)
