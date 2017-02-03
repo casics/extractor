@@ -27,10 +27,11 @@ sys.path.append('../database')
 sys.path.append('../common')
 
 from utils import *
-from file_parser import file_elements
-from dir_parser import dir_elements
+from file_parser import *
+from dir_parser import *
 from logger import *
 from text_extractor import *
+from human_language import *
 
 # The following sets up Pyro4 to print full traces when exceptions occur.
 # See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version
@@ -45,7 +46,58 @@ _default_port      = 9999
 _default_repo_root = '/srv/repositories'
 
 
-# Main body.
+# Module library interface.
+# .............................................................................
+
+class Extractor(object):
+    def __init__(self, uri, key, log=None):
+        self._uri = uri
+        self._key = key
+        self._extractor = Pyro4.Proxy(uri)
+        self._extractor._pyroHmacKey = key
+        self._log = log if log else Logger().get_log()
+
+
+    def _sanity_check_id(self, id):
+        if not isinstance(id, int) and not isinstance(id, str):
+            raise ValueError('Arg must be an int or a string: {}'.format(id))
+
+
+    def get_status(self):
+        return self._extractor.get_status()
+
+
+    def get_repo_path(self, id):
+        self._sanity_check_id(id)
+        try:
+            return self._extractor.get_repo_path(id)
+        except Exception as err:
+            self._log.error('Exception: {}'.format(err))
+            self._log.error('------ Pyro traceback ------')
+            self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+
+
+    def get_elements(self, id):
+        self._sanity_check_id(id)
+        try:
+            return self._extractor.get_elements(id)
+        except Exception as err:
+            self._log.error('Exception: {}'.format(err))
+            self._log.error('------ Pyro traceback ------')
+            self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+
+
+    def get_words(self, id, filetype='all'):
+        self._sanity_check_id(id)
+        try:
+            return self._extractor.get_words(id, filetype)
+        except Exception as err:
+            self._log.error('Exception: {}'.format(err))
+            self._log.error('------ Pyro traceback ------')
+            self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+
+
+# Client/server application.
 # .............................................................................
 
 def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
@@ -115,8 +167,7 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
         if root:
             log.info('Ignoring inapplicable option --root.  Continuing.')
 
-        extractor = Pyro4.Proxy(uri)
-        extractor._pyroHmacKey = hmac
+        extractor = Extractor(uri, hmac)
 
         # Drop into REPL and let the user do interact with the remote server.
 
@@ -124,7 +175,7 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
     extractor.get_status()
     extractor.get_repo_path(id)
     extractor.get_elements(id)
-    extractor.get_all_words(id, filetype)
+    extractor.get_words(id, filetype)
 '''
 
         IPython.embed(banner1=banner)
@@ -175,58 +226,10 @@ class ExtractorServer(object):
         return dir_elements(path)
 
 
-    def get_all_words(self, id, filetype='all'):
-        self._log_action('get_all_words({}, filetype="{}")'.format(id, filetype))
+    def get_words(self, id, filetype='all'):
+        self._log_action('get_words({}, filetype="{}")'.format(id, filetype))
         elements = self.get_elements(id)
         return all_words(elements, filetype)
-
-
-class ExtractorClient(object):
-    def __init__(self, uri, key):
-        self._uri = uri
-        self._key = key
-        self._extractor = Pyro4.Proxy(uri)
-        self._extractor._pyroHmacKey = str.encode(key)    # Convert to bytes
-
-
-    def sanity_check_id(self, id):
-        if not isinstance(id, int) and not isinstance(id, str):
-            raise ValueError('Arg must be an int or a string: {}'.format(id))
-
-
-    def get_status(self):
-        return self._extractor.get_status()
-
-
-    def get_repo_path(self, id):
-        sanity_check_id(id)
-        try:
-            return self._extractor.get_repo_path(id)
-        except Exception as err:
-            log.error('Exception: {}'.format(err))
-            log.error('------ Pyro traceback ------')
-            log.error(''.join(Pyro4.util.getPyroTraceback()))
-
-
-    def get_elements(self, id):
-        sanity_check_id(id)
-        try:
-            return self._extractor.get_elements(id)
-        except Exception as err:
-            log.error('Exception: {}'.format(err))
-            log.error('------ Pyro traceback ------')
-            log.error(''.join(Pyro4.util.getPyroTraceback()))
-
-
-    def get_all_words(self, id, filetype='all'):
-        sanity_check_id(id)
-        try:
-            return self._extractor.get_all_words(id, filetype)
-        except Exception as err:
-            log.error('Exception: {}'.format(err))
-            log.error('------ Pyro traceback ------')
-            log.error(''.join(Pyro4.util.getPyroTraceback()))
-
 
 
 # Entry point
