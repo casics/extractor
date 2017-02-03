@@ -30,7 +30,7 @@ from utils import *
 from file_parser import file_elements
 from dir_parser import dir_elements
 from logger import *
-from word_collector import *
+from text_extractor import *
 
 # The following sets up Pyro4 to print full traces when exceptions occur.
 # See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version

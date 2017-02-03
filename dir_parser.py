@@ -135,7 +135,7 @@ sys.path.append('../common')
 
 import constants
 from utils import *
-from file_parser import file_elements
+from file_parser import *
 from content_inferencer import *
 from text_extractor import *
 from human_language import *
