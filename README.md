@@ -8,11 +8,11 @@ The goal of Extractor is to extract text and features from files.  It does _some
 The formats of the text data
 ----------------------------
 
-The extractor `get_all_words(...)` function returns a list of textual words found in files in the repository.  It currently only understands English plain-text files, files that can be converted to plain text (such as HTML and Markdown), and Python code files.  It takes a repository identifier and an optional argument to tell it to limit consideration to only text or code files:
+The extractor `get_words(...)` function returns a list of textual words found in files in the repository.  It currently only understands English plain-text files, files that can be converted to plain text (such as HTML and Markdown), and Python code files.  It takes a repository identifier and an optional argument to tell it to limit consideration to only text or code files:
 
-* `get_all_words(id)`: return a list of all words in both text and code files.
-* `get_all_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
-* `get_all_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
+* `get_words(id)`: return a list of all words in both text and code files.
+* `get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
+* `get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
 
 For text files, it automatically converts some structured text files into plain text.  These are currently: HTML, Markdown, AsciiDoc, reStructured Text, RTF, and Textile.  For code files, it uses text it finds in the (1) file header (or file docstring, in the case of Python), (2) comments in the file, and (3) documentation strings on classes and functions.
 
@@ -75,9 +75,9 @@ The API provided by Extractor consists of a handful of methods on the RPC endpoi
 The values of `THE_KEY` and `THE_URI` are not stored anywhere and must be communicated separately.  Once the interactive interface starts up (it's just a normal IPython loop), the object `extractor` is the handle to the RPC interface.  The following are the available methods:
 
 * `extractor.get_dir_content(ID)` returns the structure discussed above for the repository whose identifier is `ID`.
-* `extractor.get_all_words(id)`: return a list of all words in both text and code files.
-* `extractor.get_all_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
-* `extractor.get_all_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
+* `extractor.get_words(id)`: return a list of all words in both text and code files.
+* `extractor.get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
+* `extractor.get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
 * `extractor.get_repo_path(ID)` returns a single string, the repository path, for a repository whose identifier is `ID`.
 * `extractor.get_status()` returns a string with some information about the status of the server
 
