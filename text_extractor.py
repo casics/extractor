@@ -256,13 +256,6 @@ def all_words(elements, filetype='all'):
     words = [w for w in words if w]
     return words
 
-
-def word_frequencies(word_list, lowercase=False):
-    from nltk.probability import FreqDist
-    if lowercase:
-        word_list = [w.lower() for w in word_list]
-    return FreqDist(word_list).most_common()
-
 
 # Utilities.
 # .............................................................................
