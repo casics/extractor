@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
-# @file    text_converter.py
-# @brief   Convert and post-process text
+# @file    text_extract.py
+# @brief   Convert, process and extract text.
 # @author  Michael Hucka
 #
 # <!---------------------------------------------------------------------------
@@ -49,6 +49,8 @@ import constants
 from   content_inferencer import *
 from   human_language import *
 from   logger import *
+from   dir_parser import *
+from   id_splitters import *
 
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
@@ -210,9 +212,109 @@ def tokenize_text(seq):
     # Done.
     return sentences
 
+
+def all_words(elements, filetype='all'):
+    '''Take a recursive directory/file elements dictionary and return all
+    words found in text files or as comments or headers in code files.  Some
+    basic cleanup is applied: pure camel case names are split into multiple
+    words, words in title case are lower-cased, uppercase and other mixed-
+    case words are left unchanged, URLs are removed, words that have no
+    letters are removed, but stopwords are not removed.
+
+    Argument 'filetype' limits the files considered:
+      'text' ==> only text files are read
+      'code' ==> only program files are read
+      'all'  ==> both text and code files
+
+    '''
+
+    log = Logger().get_log()
+    if 'body' not in elements:
+        log.debug('Missing "body" key in dictionary')
+        return None
+    words = []
+    if elements['type'] == 'file':
+        if ignorable_filename(elements['name']):
+            log.debug('Skipping ignorable file: {}'.format(elements['name']))
+            return []
+        elif elements['body'] != None and len(elements['body']) == 0:
+            log.debug('Skipping empty file: {}'.format(elements['name']))
+            return []
+        elif not elements['text_language']:
+            log.debug('Skipping unhandled file type: {}'.format(elements['name']))
+            return []
+        elif elements['text_language'] not in ['en', 'unknown']:
+            log.info('Skipping non-English file {}'.format(elements['name']))
+            return []
+        if filetype in ['text', 'all'] and not elements['code_language']:
+            words = words + extract_text_words(elements['body'])
+        if filetype in ['code', 'all'] and elements['code_language']:
+            words = words + extract_code_words(elements['body'])
+    else:
+        for item in elements['body']:
+            words = words + all_words(item)
+    words = [w for w in words if w]
+    return words
+
+
+def word_frequencies(word_list, lowercase=False):
+    from nltk.probability import FreqDist
+    if lowercase:
+        word_list = [w.lower() for w in word_list]
+    return FreqDist(word_list).most_common()
+
 
 # Utilities.
 # .............................................................................
+
+def extract_text_words(body):
+    '''Tokenizes text in 'body'.  Removes URLs and other things.  Lowercases
+    capitalized words but doesn't change all-caps words and mixed-case words
+    that begin with a capital (e.g., XMatrix).  Splits pure camel-case
+    identifiers and treats them as individual words: 'fooBar' -> 'foo',
+    'bar'. Removes URLs and words that have no letters.
+    '''
+    words = flatten(tokenize_text(body))
+    # Remove words that are URLs.
+    words = [w for w in words if not re.search(constants.url_compiled_regex, w)]
+    words = [w for w in words if not re.search(constants.mail_compiled_regex, w)]
+    # Remove / from paths to leave individual words: /usr/bin -> usr bin
+    # Also split words at hyphens and other delimiters while we're at it.
+    # Also split words at numbers, e.g., "rtf2html" -> "rtf", "html".
+    tmp = []
+    for w in words:
+        tmp = tmp + re.split(r'[-/_.:\\0123456789’*]', w)
+    words = tmp
+    # Remove words that contain non-ASCII characters.
+    words = [w for w in words if is_ascii(w)]
+    # Remove terms that have no letters.
+    words = [w for w in words if re.search(r'[a-zA-Z]+', w)]
+    # Remove terms that contain unusual characters embedded, like %s.
+    words = [w for w in words if not re.search(r'[%]', w)]
+    # Do naive camel case splitting: this is relatively safe for identifiers
+    # like 'handleFileUpload' and yet won't screw up 'GPSmodule'.
+    tmp = []
+    for w in words:
+        tmp = tmp + naive_camelcase_split(w)
+    words = tmp
+    # Lowercase words that are capitalized (but not others).
+    tmp = []
+    for w in words:
+        tmp.append(w.lower() if w.istitle() else w)
+    words = tmp
+    return words
+
+
+def extract_code_words(body):
+    # Look in the header, comments and docstrings.
+    words = []
+    if body['header']:
+        words = extract_text_words(body['header'])
+    for element in ['comments', 'docstrings']:
+        for chunk in body[element]:
+            words = words + extract_text_words(chunk)
+    return words
+
 
 def html_from_asciidoc_file(filename):
     '''Convert asciidoc file to HTML.'''
@@ -337,3 +439,52 @@ def unsoupify(soup):
     text = re.sub(r'\n', ' ', ''.join(soup.find_all(text=True)))
     text = unicodedata.normalize('NFKD', text)
     return text
+
+
+def tabulate_frequencies(freq, format='plain'):
+    from tabulate import tabulate
+    return tabulate(freq, tablefmt=format)
+
+
+def ignorable_filename(name):
+    return any(fnmatch(name, pat) for pat in constants.common_ignorable_files)
+
+
+# Quick test interface.
+# .............................................................................
+
+def run_text_extractor(debug=False, ppr=False, loglevel='info', *input):
+    '''Test word_extractor.py.'''
+    if len(input) < 1:
+        raise SystemExit('Need an argument')
+    log = Logger('word_collector', console=True).get_log()
+    if debug:
+        log.set_level('debug')
+    else:
+        log.set_level(loglevel)
+    target = input[0]
+    if not os.path.exists(target):
+        raise ValueError('{} not found'.format(target))
+    log.info('Running dir_elements')
+    e = dir_elements(target)
+    log.info('Running all_words')
+    w = all_words(e)
+    log.info('Getting_word frequencies')
+    f = list(word_frequencies(w))
+    if debug:
+        import ipdb; ipdb.set_trace()
+    if ppr:
+        import pprint
+        pprint.pprint(f)
+    else:
+        print(tabulate_frequencies(f))
+
+run_text_extractor.__annotations__ = dict(
+    debug    = ('drop into ipdb after parsing',     'flag',   'd'),
+    ppr      = ('use pprint to print result',       'flag',   'p'),
+    loglevel = ('logging level: "debug" or "info"', 'option', 'L'),
+    input    = 'file or directory to process',
+)
+
+if __name__ == '__main__':
+    plac.call(run_text_extractor)
