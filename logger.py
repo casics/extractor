@@ -94,7 +94,6 @@ class Logger(metaclass=Singleton):
                 },
                 style='%'
             ))
-            self._logger = colorlog.getLogger(name)
             self._logger.addHandler(stream_handler)
 
 
