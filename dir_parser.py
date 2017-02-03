@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python3
 #
 # @file    dir_parser.py
 # @brief   Given a directory, parse all the Python files in it.
@@ -160,6 +160,9 @@ _extreme_max_file_size = 5*1024*1024
 # .............................................................................
 
 def dir_elements(path):
+    from text_extractor import extract_text
+    from file_parser import file_elements
+
     def file_dict(filename, body, code_lang, text_lang):
         return {'name': filename, 'type': 'file', 'body': body,
                 'text_language': text_lang, 'code_language': code_lang}
