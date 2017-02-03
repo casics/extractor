@@ -28,7 +28,7 @@ sys.path.append('../database')
 sys.path.append('../common')
 
 from utils import *
-from text_converter import *
+from text_extractor import *
 from logger import *
 
 

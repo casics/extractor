@@ -65,9 +65,16 @@ def delimiter_split(identifier):
     parts = [p for p in parts if p]
     return parts
 
+
+# Naive camel case splitter
+# .............................................................................
 
 def naive_camelcase_split(identifier):
     '''Split identifiers by forward camel case only, i.e., lower-to-upper case
     transitions.  This means it will split fooBarBaz into 'foo', 'Bar' and
     'Baz', but it won't change SQLlite or similar identifiers.'''
     return re.sub(r'((?<=[a-z])[A-Z])', r' \1', identifier).split()
+
+
+# Naive camel case splitter
+# .............................................................................
