@@ -78,10 +78,12 @@ common_text_markup_extensions = [
 
 common_ignorable_files = [
     '*~',
+    '*.bak',
+    '*.pyc',
+    '*.svn-base',
+    '*.class',
     '.#*',
     '.*.swp',
-    '.bak',
-    '.pyc',
     '.config',
     '.ds_store',
     '.editorconfig',
@@ -89,7 +91,6 @@ common_ignorable_files = [
     '.gitconfig',
     '.gitignore',
     '.gitmodules',
-    '.svn-base',
 ]
 
 common_unhandled_files = [
