@@ -163,11 +163,8 @@ class ElementCollector(ast.NodeVisitor):
                         self.variables.append(var.id)
                 elif isinstance(var, ast.Tuple):
                     iterate_tuples(var.elts)
-                elif isinstance(var, ast.List):
-                    self.visit(var)
                 else:
-                    log = Logger().get_log()
-                    log.error('Unexpected tuple value in visit_For')
+                    self.visit(var)
 
         if isinstance(node.target, ast.Name):
             if not ignorable_name(node.target.id):
