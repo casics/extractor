@@ -195,7 +195,7 @@ def clean_plain_text(text):
 
 _common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
                        'e.g', 'i.e'])
-_odd_chars = '|<>&+=$%'
+_odd_chars = '|<>&+=$%^'
 _odd_char_splitter = str.maketrans(_odd_chars, ' '*len(_odd_chars))
 
 def tokenize_text(seq):
@@ -228,7 +228,7 @@ def tokenize_text(seq):
         sentences.append([word for word in sent if re.search(r'[a-zA-Z]', word)])
 
     # Remove embedded quote characters & other oddball characters in strings.
-    sentences = [[re.sub('["`\']', '', word) for word in sent] for sent in sentences]
+    sentences = [[re.sub('["`\',]', '', word) for word in sent] for sent in sentences]
 
     # Remove blanks.
     sentences = [x for x in sentences if x]
