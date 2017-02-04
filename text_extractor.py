@@ -368,6 +368,14 @@ def html_from_roff_file(filename):
     return output_from_external_converter(cmd)
 
 
+# 2017-02-04 <mhucka@caltech.edu> Currently can't be used because rdoc
+# generates a subdirectory with multiple files.
+def html_from_rdoc_file(filename):
+    '''Convert Ruby .rdoc file to HTML.'''
+    cmd = ['rdoc', '-O', os.path.join(os.getcwd(), filename)]
+    return output_from_external_converter(cmd)
+
+
 # After looking at a lot of real-life README files and the result of its
 # conversion to text by Pandoc and other converters, I noticed that the text
 # often lacks punctuation that would indicate full sentences.  For human
