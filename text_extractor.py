@@ -111,10 +111,11 @@ def extract_text(filename, encoding='utf-8', retried=False):
                           .format(ext, filename))
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
-            elif ext in ['.org']:
-                log.debug('Extracting text from org-mode file {}'.format(filename))
-                html = pypandoc.convert_file(filename, to='html')
-                return convert_html(html)
+            # Turns out pypandoc can't handle .org files, though Pandoc can.
+            # elif ext in ['.org']:
+            #     log.debug('Extracting text from org-mode file {}'.format(filename))
+            #     html = pypandoc.convert_file(filename, to='html')
+            #     return convert_html(html)
             elif ext[1:].isdigit():
                 log.debug('Extracting text from *roff file {}'.format(filename))
                 html = html_from_roff_file(filename)
