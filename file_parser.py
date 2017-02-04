@@ -448,7 +448,7 @@ def convert_python2_file(filename):
         shutil.copyfile(full_path, working_file.name)
         (status, output, errors) = shell_cmd(cmd)
         if status == 0:
-            log.debug('returned without error')
+            log.debug('converted {}'.format(filename))
             return working_file
         elif os.path.exists(working_file.name):
             working_file.close()
