@@ -89,6 +89,7 @@ common_ignorable_files = [
     '.gitconfig',
     '.gitignore',
     '.gitmodules',
+    '.svn-base',
 ]
 
 common_unhandled_files = [
