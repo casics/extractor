@@ -96,6 +96,9 @@ def extract_text(filename, encoding='utf-8', retried=False):
             elif ext in ['.textile']:
                 html = textile.textile(file.read())
                 return convert_html(html)
+            elif ext in ['.tex']:
+                html = pypandoc.convert_file(filename, to='html')
+                return convert_html(html)
             else:
                 log.info('cannot handle {} file'.format(ext))
                 return None
