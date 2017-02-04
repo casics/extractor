@@ -513,11 +513,12 @@ def file_elements(filename):
                 # We thought it was Python 2 but couldn't convert it.
                 # Something is wrong. Bail.
                 log.debug('conversion failed -- giving up on {}'.format(full_path))
-                return None
+                # At this point, we still have an empty elements dictionary.
+                return elements
         except Exception as err:
             log.error('error trying to detected if {} uses Python 2'.format(full_path))
             log.error(err)
-            return None
+            return elements
 
     # Pass #1: use tokenize to find and store headers and comments.
 

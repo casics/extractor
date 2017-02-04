@@ -53,8 +53,10 @@
 #
 # * `{'name': 'abc', 'type': 'dir', 'body': [ ...dicts... ]` if it's not empty
 #
-# * `{'name': 'abc', 'type': 'file', 'body': '', 'text_language': None,
-#   'code_language': Node}` if the file is empty
+# * `{'name': 'abc', 'type': 'file', 'body': '', ...} if the file is empty
+#
+# * `{'name': 'abc', 'type': 'file', 'body': None, ...} if the file is ignored
+#    because we don't parse that type
 #
 # * `{'name': 'abc', 'type': 'file', 'body': '...string...', 'text_language':
 #   'en', 'code_language': Node}` if the file contains text in English but
@@ -64,15 +66,12 @@
 #   'en', 'code_language': 'Python' }` if the file contains Python code with
 #   English text
 #
-# * `{'name': 'abc', 'type': 'file', 'body': None, 'text_language': None,
-#   'code_language': Node}` if the file is ignored
-#
 # When it comes to non-code text files, if the file is not literally plain
 # text, Extractor extracts the text from it.  It currently converts the
-# following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF, and
-# Textile.  It does this by using a variety of utilities such as
-# BeautifulSoup to convert the formats to plain text, and returns this as a
-# single string.  In the case of a code file, the value associated with the
+# following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF,
+# Textile, and LaTeX/TeX.  It does this by using a variety of utilities such
+# as BeautifulSoup to convert the formats to plain text, and returns this as
+# a single string.  In the case of a code file, the value associated with the
 # `'body'` key is a dictionary of elements described in more detail below.
 #
 # The text language inside files is inferred using
@@ -101,6 +100,13 @@
 # assessment is based by first looking for a file header and guessing the
 # language used, and if no header is found, then examining all the comments
 # (as individual strings) and taking the most common language from among them.
+#
+# The dictionary of elements can have empty values for the various keys even
+# when a file contains code that we parse (currently, Python).  This can
+# happen if the file is empty or something goes badly wrong during parsing
+# such as encountering a syntactic error in the code.  (The latter happens
+# because the process parses code into an AST to extract the elements, and
+# this can fail if the code is unparseable.)
 
 import bs4
 import chardet
@@ -163,12 +169,12 @@ def dir_elements(path):
     from text_extractor import extract_text
     from file_parser import file_elements
 
-    def file_dict(filename, body, code_lang, text_lang):
-        return {'name': filename, 'type': 'file', 'body': body,
+    def file_dict(filename, body_elements, code_lang, text_lang):
+        return {'name': filename, 'type': 'file', 'body': body_elements,
                 'text_language': text_lang, 'code_language': code_lang}
 
     full_path = os.path.join(os.getcwd(), path)
-    log = Logger('file_parser', console=True).get_log()
+    log = Logger().get_log()
     if not os.path.isdir(path):
         log.error('Not a directory: {}'.format(full_path))
         raise ValueError('Not a directory: {}'.format(full_path))
