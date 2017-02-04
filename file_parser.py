@@ -256,7 +256,10 @@ class ElementCollector(ast.NodeVisitor):
             if alias.name == '*':
                 self.imports.append(node.module)
             else:
-                self.imports.append(node.module + '.' + alias.name)
+                # 'module' is None when we have "from . import foo".
+                # Skip those cases.
+                if node.module:
+                    self.imports.append(node.module + '.' + alias.name)
 
 
     def visit_Expr(self, node):
