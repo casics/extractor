@@ -256,6 +256,10 @@ def all_words(elements, filetype='all'):
         elif elements['text_language'] not in ['en', 'unknown']:
             log.info('Skipping non-English file {}'.format(elements['name']))
             return []
+        elif elements['body'] == None:
+            log.error('Unexpected empty body for {}'.format(elements['name']))
+            return []
+
         if filetype in ['text', 'all'] and not elements['code_language']:
             words = words + extract_text_words(elements['body'])
         if filetype in ['code', 'all'] and elements['code_language']:
