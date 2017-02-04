@@ -512,7 +512,7 @@ def file_elements(filename):
             else:
                 # We thought it was Python 2 but couldn't convert it.
                 # Something is wrong. Bail.
-                log.debug('conversion failed -- giving up on {}'.format(full_path))
+                log.warn('conversion failed -- giving up on {}'.format(full_path))
                 # At this point, we still have an empty elements dictionary.
                 return elements
         except Exception as err:

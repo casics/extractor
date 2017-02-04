@@ -257,7 +257,7 @@ def all_words(elements, filetype='all'):
             log.info('Skipping non-English file {}'.format(elements['name']))
             return []
         elif elements['body'] == None:
-            log.error('Unexpected empty body for {}'.format(elements['name']))
+            log.warn('Unexpected empty body for {}'.format(elements['name']))
             return []
 
         if filetype in ['text', 'all'] and not elements['code_language']:
