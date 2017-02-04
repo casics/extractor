@@ -128,6 +128,12 @@ class ElementCollector(ast.NodeVisitor):
             self.strings.append(node.s)
 
 
+    def visit_List(self, node):
+        if hasattr(node, 'elts'):
+            for thing in node.elts:
+                self.visit(thing)
+
+
     def visit_Assign(self, node):
         for thing in node.targets:
             name_visitor = NameVisitor()
@@ -157,16 +163,22 @@ class ElementCollector(ast.NodeVisitor):
                         self.variables.append(var.id)
                 elif isinstance(var, ast.Tuple):
                     iterate_tuples(var.elts)
+                elif isinstance(var, ast.List):
+                    self.visit(var)
                 else:
-                    error('Unexpected tuple value in visit_For')
+                    log = Logger().get_log()
+                    log.error('Unexpected tuple value in visit_For')
 
         if isinstance(node.target, ast.Name):
             if not ignorable_name(node.target.id):
                 self.variables.append(node.target.id)
         elif isinstance(node.target, ast.Tuple):
             iterate_tuples(node.target.elts)
+        elif sinstance(node.target, ast.List):
+            self.visit(node.target)
         else:
-            error('Unexpected target type in visit_For')
+            log = Logger().get_log()
+            log.error('Unexpected target type in visit_For')
 
 
     def visit_Call(self, node):
@@ -213,6 +225,9 @@ class ElementCollector(ast.NodeVisitor):
                 path.append(arg.arg)
                 var_name = '|'.join(path)
                 self.variables.append(var_name)
+        # Check for keyword arg deafult values.
+        for arg in node.args.defaults:
+            self.visit(arg)
         # Check if there's a doc string.
         if len(node.body) > 0 and hasattr(node.body[0], 'value'):
             first_thing = node.body[0].value
