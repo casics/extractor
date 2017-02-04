@@ -52,17 +52,17 @@ Altogether, this leads to the following possibilities:
 
 * `{'name': 'abc', 'type': 'dir', 'body': [ ...dicts... ]` if it's not empty
 
-* `{'name': 'abc', 'type': 'file', 'body': '', 'text_language': None, 'code_language': Node}` if the file is empty
+* `{'name': 'abc', 'type': 'file', 'body': '', ...}` if the file is empty
+
+* `{'name': 'abc', 'type': 'file', 'body': None, ...}` if the file is ignored because we don't support parsing that type of file (yet) or else an error occurred while trying to parse it
 
 * `{'name': 'abc', 'type': 'file', 'body': '...string...', 'text_language': 'en', 'code_language': Node}` if the file contains text in English but not code
 
 * `{'name': 'abc', 'type': 'file', 'body': { elements }, 'text_language': 'en', 'code_language': 'Python' }` if the file contains Python code with English text
 
-* `{'name': 'abc', 'type': 'file', 'body': None, 'text_language': None, 'code_language': Node}` if the file is ignored
+When it comes to non-code text files, if the file is not literally plain text, Extractor extracts the text from it.  It currently converts the following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF, Textile, and LaTeX/TeX.  It does this by using a variety of utilities such as BeautifulSoup to convert the formats to plain text, and returns this as a single string.  In the case of a code file, the value associated with the `'body'` key is a dictionary of elements described in more detail below.
 
-When it comes to non-code text files, if the file is not literally plain text, Extractor extracts the text from it.  It currently converts the following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF, and Textile.   It does this by using a variety of utilities such as BeautifulSoup to convert the formats to plain text, and returns this as a single string.  In the case of a code file, the value associated with the `'body'` key is a dictionary of elements described in more detail below.
-
-The text language inside files is inferred using [langid](https://github.com/saffsd/langid.py) and the value for the key `text_language` is a two-letter ISO 639-1 code (e.g., `'en'` for English).  The language inferrence is not perfect, particularly when there is not much text in a file, but by examining all the text chunks in a file (including all the separate comments) and returning the most frequently-inferred language, Extractor can do a reasonable job.  If there is no text at all (no headers, no comments), Extractor defaults to `'en'`.
+The text language inside files is inferred using [langid](https://github.com/saffsd/langid.py) and the value for the key `text_language` is a two-letter ISO 639-1 code (e.g., `'en'` for English).  The language inferrence is not perfect, particularly when there is not much text in a file, but by examining all the text chunks in a file (including all the separate comments) and returning the most frequently-inferred language, Extractor can do a reasonable job.  If there is no text at all (no headers, no comments), Extractor defaults to `'en'` because programming languages themselves are usually written in English.
 
 
 Interacting with Extractor on the command line
@@ -162,6 +162,8 @@ Then, the dictionary returned by Extractor for this file will look like this:
                  ('bar.some_function_on_class', 1)],
        },
     }
+
+The dictionary of elements can have empty values for the various keys even when a file contains code that we parse (currently, Python).  This can happen if the file is empty or something goes badly wrong during parsing such as encountering a syntactic error in the code.  (The latter happens because the process parses code into an AST to extract the elements, and this can fail if the code is unparseable.)
 
 
 More information about text processing performed
