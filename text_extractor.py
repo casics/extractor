@@ -476,8 +476,6 @@ def run_text_extractor(debug=False, ppr=False, loglevel='info', *input):
     e = dir_elements(target)
     log.info('Running all_words')
     w = all_words(e)
-    log.info('Getting_word frequencies')
-    f = list(word_frequencies(w))
     if debug:
         import ipdb; ipdb.set_trace()
     if ppr:
