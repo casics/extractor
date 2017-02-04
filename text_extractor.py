@@ -106,6 +106,19 @@ def extract_text(filename, encoding='utf-8', retried=False):
                 log.debug('Extracting text from LaTeX/TeX file {}'.format(filename))
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
+            elif ext in ['.docx', '.odt']:
+                log.debug('Extracting text from office {} file {}'
+                          .format(ext, filename))
+                html = pypandoc.convert_file(filename, to='html')
+                return convert_html(html)
+            elif ext in ['.org']:
+                log.debug('Extracting text from org-mode file {}'.format(filename))
+                html = pypandoc.convert_file(filename, to='html')
+                return convert_html(html)
+            elif ext[1:].isdigit():
+                log.debug('Extracting text from *roff file {}'.format(filename))
+                html = html_from_roff_file(filename)
+                return convert_html(html)
             else:
                 log.info('cannot handle {} file'.format(ext))
                 return None
@@ -323,17 +336,21 @@ def extract_code_words(body):
     return words
 
 
-def html_from_asciidoc_file(filename):
-    '''Convert asciidoc file to HTML.'''
-    cmd = ['asciidoctor', '--no-header-footer', '--safe', '--quiet',
-           '-o', '-', os.path.join(os.getcwd(), filename)]
+def output_from_external_converter(cmd):
     log = Logger().get_log()
     log.debug(' '.join(cmd))
     (status, output, errors) = shell_cmd(cmd)
     if status == 0:
         return output
     else:
-        raise ShellCommandException('asciidoctor failed: {}'.format(errors))
+        raise ShellCommandException('{} failed: {}'.format(cmd[0], errors))
+
+
+def html_from_asciidoc_file(filename):
+    '''Convert asciidoc file to HTML.'''
+    cmd = ['asciidoctor', '--no-header-footer', '--safe', '--quiet',
+           '-o', '-', os.path.join(os.getcwd(), filename)]
+    return output_from_external_converter(cmd)
 
 
 def html_from_rtf_file(filename):
@@ -341,13 +358,13 @@ def html_from_rtf_file(filename):
     # Wanted to use Python 'pyth', but it's not Python 3 compatible.  Linux
     # 'unrtf' needs to be installed on the system.
     cmd = ['unrtf', os.path.join(os.getcwd(), filename)]
-    log = Logger().get_log()
-    log.debug(' '.join(cmd))
-    (status, output, errors) = shell_cmd(cmd)
-    if status == 0:
-        return output
-    else:
-        raise ShellCommandException('unrtf failed: {}'.format(errors))
+    return output_from_external_converter(cmd)
+
+
+def html_from_roff_file(filename):
+    '''Convert Unix man page (roff) file to HTML.'''
+    cmd = ['mandoc', '-Thtml', os.path.join(os.getcwd(), filename)]
+    return output_from_external_converter(cmd)
 
 
 # After looking at a lot of real-life README files and the result of its
@@ -383,6 +400,10 @@ def convert_html(html):
 
     # Remove scripts.
     for el in soup.find_all('script'):
+        el.extract()
+
+    # Remove style elements.
+    for el in soup.find_all('style'):
         el.extract()
 
     # Ignore pre and img because we don't have a good way of dealing with them.
@@ -448,6 +469,13 @@ def unsoupify(soup):
     return text
 
 
+def word_frequencies(word_list, lowercase=False):
+    from nltk.probability import FreqDist
+    if lowercase:
+        word_list = [w.lower() for w in word_list]
+    return FreqDist(word_list).most_common()
+
+
 def tabulate_frequencies(freq, format='plain'):
     from tabulate import tabulate
     return tabulate(freq, tablefmt=format)
@@ -479,10 +507,9 @@ def run_text_extractor(debug=False, ppr=False, loglevel='info', *input):
     if debug:
         import ipdb; ipdb.set_trace()
     if ppr:
-        import pprint
-        pprint.pprint(f)
+        msg(w)
     else:
-        print(tabulate_frequencies(f))
+        print(tabulate_frequencies(word_frequencies(w)))
 
 run_text_extractor.__annotations__ = dict(
     debug    = ('drop into ipdb after parsing',     'flag',   'd'),

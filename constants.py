@@ -43,6 +43,16 @@ common_puretext_extensions = [
 ]
 
 common_text_markup_extensions = [
+    '.0',
+    '.1',
+    '.2',
+    '.3',
+    '.4',
+    '.5',
+    '.6',
+    '.7',
+    '.8',
+    '.9',
     '.asciidoc',
     '.adoc',
     '.asc',
@@ -61,6 +71,7 @@ common_text_markup_extensions = [
     '.rdoc',
     '.rtf',
     '.rst',
+    '.tex',
     '.textile',
     '.wiki',
 ]
@@ -87,4 +98,9 @@ common_unhandled_files = [
     'makefile',
     'pom',
     'rakefile',
+]
+
+convertible_document_extensions = [
+    '.docx',
+    '.odf',
 ]

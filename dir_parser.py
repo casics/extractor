@@ -218,7 +218,7 @@ def dir_elements(path):
                     lang = majority_language(header + comments + strings)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
-            elif text_file(file) and not excessively_large_file(file):
+            elif document_file(file) and not excessively_large_file(file):
                 log.debug('text file: {}'.format(file))
                 text = extract_text(file)
                 if text:
@@ -275,12 +275,13 @@ def readme_file(filename):
     return 'readme' in basename or 'read me' in basename
 
 
-def text_file(filename):
+def document_file(filename):
     if readme_file(filename):
         return True
     name, ext = os.path.splitext(filename.lower())
     if (ext in constants.common_puretext_extensions
-        or ext in constants.common_text_markup_extensions):
+        or ext in constants.common_text_markup_extensions
+        or ext in constants.convertible_document_extensions):
         return True
     elif not is_code_file(filename):
         return probably_text(filename)
