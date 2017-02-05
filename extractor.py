@@ -77,20 +77,20 @@ class Extractor(object):
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
 
 
-    def get_elements(self, id):
+    def get_elements(self, id, recache=False):
         self._sanity_check_id(id)
         try:
-            return self._extractor.get_elements(id)
+            return self._extractor.get_elements(id, recache)
         except Exception as err:
             self._log.error('Exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
 
 
-    def get_words(self, id, filetype='all'):
+    def get_words(self, id, filetype='all', recache=False):
         self._sanity_check_id(id)
         try:
-            return self._extractor.get_words(id, filetype)
+            return self._extractor.get_words(id, filetype, recache)
         except Exception as err:
             self._log.error('Exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
@@ -214,8 +214,8 @@ class ExtractorServer(object):
         return generate_path(self._root_dir, id)
 
 
-    def get_elements(self, id):
-        self._log_action('get_elements({})'.format(id))
+    def get_elements(self, id, recache=False):
+        self._log_action('get_elements({}, recache={})'.format(id, recache))
         if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
             path = generate_path(self._root_dir, id)
         elif isinstance(id, str):
@@ -223,13 +223,14 @@ class ExtractorServer(object):
         else:
             self._log.error('Arg must be an int or a string: {}'.format(id))
             raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return dir_elements(path)
+        return dir_elements(path, recache)
 
 
-    def get_words(self, id, filetype='all'):
-        self._log_action('get_words({}, filetype="{}")'.format(id, filetype))
-        elements = self.get_elements(id)
-        return all_words(elements, filetype)
+    def get_words(self, id, filetype='all', recache=False):
+        self._log_action('get_words({}, filetype="{}", recache={})'
+                         .format(id, filetype, recache))
+        elements = self.get_elements(id, recache)
+        return all_words(elements, filetype, recache)
 
 
 # Entry point
