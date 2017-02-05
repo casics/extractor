@@ -278,9 +278,14 @@ def all_words(wrapper, filetype='all', recache=False):
 
 def all_words_recursive(elements, filetype='all'):
     log = Logger().get_log()
-    if 'body' not in elements:
-        log.debug('Missing "body" key in elements dictionary')
-        return None
+
+    if not elements:
+        log.warn('Empty elements -- no words returned')
+        return []
+    elif 'body' not in elements:
+        log.warn('Missing "body" key in elements dictionary -- skipping')
+        return []
+
     words = []
     if elements['type'] == 'file':
         if ignorable_filename(elements['name']):
