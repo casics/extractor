@@ -176,13 +176,13 @@ def dir_elements(path, recache=False):
 
     # Check if the destination really exists and is readable to us.
     if not os.path.exists(path):
-        log.warning('{} does not exist -- skipping'.format(full_path))
+        log.warn('{} does not exist -- skipping'.format(full_path))
         return wrapper_dict(full_path, None)
     elif not os.path.isdir(path):
-        log.warning('{} is not a directory -- skipping'.format(full_path))
+        log.warn('{} is not a directory -- skipping'.format(full_path))
         return wrapper_dict(full_path, None)
     elif not os.access(path, os.R_OK|os.X_OK):
-        log.warning('{} unreadable -- skipping'.format(full_path))
+        log.warn('{} unreadable -- skipping'.format(full_path))
         return wrapper_dict(full_path, None)
 
     cached_elements = cached_value(full_path, 'dir_elements')
