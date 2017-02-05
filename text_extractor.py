@@ -237,7 +237,7 @@ def tokenize_text(seq):
     return sentences
 
 
-def all_words(elements, filetype='all'):
+def all_words(wrapper, filetype='all', recache=False):
     '''Take a recursive directory/file elements dictionary and return all
     words found in text files or as comments or headers in code files.  Some
     basic cleanup is applied: pure camel case names are split into multiple
@@ -249,12 +249,37 @@ def all_words(elements, filetype='all'):
       'text' ==> only text files are read
       'code' ==> only program files are read
       'all'  ==> both text and code files
-
     '''
 
     log = Logger().get_log()
+    if 'full_path' not in wrapper:
+        log.debug('Missing "full_path" key in dictionary')
+        return None
+
+    full_path = wrapper['full_path']
+    cached_words = cached_value(full_path, 'all_words')
+    if cached_words:
+        if recache:
+            log.debug('ignoring cached all_words for {}'.format(full_path))
+        else:
+            log.debug('returning cached all_words for {}'.format(full_path))
+            return cached_words
+    else:
+        log.debug('no cached all_words found for {}'.format(full_path))
+
+    elements = wrapper['elements']
+    words = all_words_recursive(elements, filetype=filetype)
+
+    log.debug('caching all_words for {}'.format(full_path))
+    save_cached_value(full_path, 'all_words', words)
+
+    return words
+
+
+def all_words_recursive(elements, filetype='all'):
+    log = Logger().get_log()
     if 'body' not in elements:
-        log.debug('Missing "body" key in dictionary')
+        log.debug('Missing "body" key in elements dictionary')
         return None
     words = []
     if elements['type'] == 'file':
@@ -280,7 +305,7 @@ def all_words(elements, filetype='all'):
             words = words + extract_code_words(elements['body'])
     else:
         for item in elements['body']:
-            words = words + all_words(item)
+            words = words + all_words_recursive(item, filetype=filetype)
     words = [w for w in words if w]
     return words
 
@@ -497,7 +522,8 @@ def ignorable_filename(name):
 # Quick test interface.
 # .............................................................................
 
-def run_text_extractor(debug=False, ppr=False, loglevel='info', *input):
+def run_text_extractor(debug=False, ppr=False, loglevel='info',
+                       recache=False, *input):
     '''Test word_extractor.py.'''
     if len(input) < 1:
         raise SystemExit('Need an argument')
@@ -510,9 +536,9 @@ def run_text_extractor(debug=False, ppr=False, loglevel='info', *input):
     if not os.path.exists(target):
         raise ValueError('{} not found'.format(target))
     log.info('Running dir_elements')
-    e = dir_elements(target)
+    e = dir_elements(target, recache=recache)
     log.info('Running all_words')
-    w = all_words(e)
+    w = all_words(e, recache=recache)
     if debug:
         import ipdb; ipdb.set_trace()
     if ppr:
@@ -524,6 +550,7 @@ run_text_extractor.__annotations__ = dict(
     debug    = ('drop into ipdb after parsing',     'flag',   'd'),
     ppr      = ('use pprint to print result',       'flag',   'p'),
     loglevel = ('logging level: "debug" or "info"', 'option', 'L'),
+    recache  = ('invalidate caches',                'flag',   'r'),
     input    = 'file or directory to process',
 )
 

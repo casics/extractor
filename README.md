@@ -8,13 +8,13 @@ The goal of Extractor is to extract text and features from files.  It does _some
 The formats of the text data
 ----------------------------
 
-The extractor `get_words(...)` function returns a list of textual words found in files in the repository.  It currently only understands English plain-text files, files that can be converted to plain text (such as HTML and Markdown), and Python code files.  It takes a repository identifier and an optional argument to tell it to limit consideration to only text or code files:
+The extractor `get_words(...)` function returns a list of textual words found in files in a repository.  It currently only understands (1) English plain-text files, (2) files that can be converted to plain text (such as HTML and Markdown), and (3) Python code files.  It takes a repository identifier and an optional argument to tell it to limit consideration to only text or code files:
 
 * `get_words(id)`: return a list of all words in both text and code files.
 * `get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
 * `get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
 
-For text files, it automatically converts some structured text files into plain text.  These are currently: HTML, Markdown, AsciiDoc, reStructured Text, RTF, and Textile.  For code files, it uses text it finds in the (1) file header (or file docstring, in the case of Python), (2) comments in the file, and (3) documentation strings on classes and functions.
+For text files, it automatically converts some structured text files and some document formats into plain text.  These are currently: HTML, Markdown, AsciiDoc, reStructured Text, RTF, Textile, LaTeX/TeX, DOCX and ODT.  For code files, it uses the text it finds in the (1) file header (or file docstring, in the case of Python), (2) comments in the file, and (3) documentation strings on classes and functions.
 
 The list of words is processed to a limited extent.  The transformations are:
 
@@ -33,7 +33,9 @@ The format of the file/directory elements data
 
 The Extractor function `get_elements(...)` returns a dictionary representation of all the files and subdirectories in a repository.
 
-The format of the structure is simple and recursive.  Each element is a dictionary with at least the following key-value pairs: the key `'name'` having as its associated value the name of a file or directory, the key `'type'` having as its value either `'dir'` or `'file'`, and the key `'body'` containing the contents of the file or directory.  In the case of files, the dictionary has two additional keys: `'text_language'`, for the predominant human language found in the text (based on the file header and comments), and `'code_language'`, for the language of the program (if the file represents code).  In summary:
+The outer dictionary (the value actually returned by `get_elements(...)`) is a wrapper with two key-value pairs: `full_path`, whose value is the full path to the directory on the disk, and `elements`, which is the actual content data.
+
+The format of the `elements` structure is simple and recursive.  Each element is a dictionary with at least the following key-value pairs: the key `'name'` having as its associated value the name of a file or directory, the key `'type'` having as its value either `'dir'` or `'file'`, and the key `'body'` containing the contents of the file or directory.  In the case of files, the dictionary has two additional keys: `'text_language'`, for the predominant human language found in the text (based on the file header and comments), and `'code_language'`, for the language of the program (if the file represents code).  In summary:
 
 * If an item is a directory, the dictionary looks like this:
 
@@ -74,7 +76,7 @@ The API provided by Extractor consists of a handful of methods on the RPC endpoi
 
 The values of `THE_KEY` and `THE_URI` are not stored anywhere and must be communicated separately.  Once the interactive interface starts up (it's just a normal IPython loop), the object `extractor` is the handle to the RPC interface.  The following are the available methods:
 
-* `extractor.get_dir_content(ID)` returns the structure discussed above for the repository whose identifier is `ID`.
+* `extractor.get_elements(ID)` returns the structure discussed above for the repository whose identifier is `ID`.
 * `extractor.get_words(id)`: return a list of all words in both text and code files.
 * `extractor.get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
 * `extractor.get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.

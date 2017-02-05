@@ -16,10 +16,15 @@
 # highly processed and condensed version of the directory contents of that
 # repository.
 #
-# The format of the JSON structure is simple and recursive.  Each element is
-# a dictionary with a least the following key-value pairs: the key 'name'
-# having as its associated value the name of a file or directory, the key
-# 'type' having as its value either 'dir' or 'file', and the key 'body'
+# The outer dictionary (the value actually returned by `get_elements(...)`)
+# is a wrapper with two key-value pairs: `full_path`, whose value is the full
+# path to the directory on the disk, and `elements`, which is the actual
+# content data.
+#
+# The format of the `elements` structure is simple and recursive.  Each
+# element is a dictionary with a least the following key-value pairs: the key
+# 'name' having as its associated value the name of a file or directory, the
+# key 'type' having as its value either 'dir' or 'file', and the key 'body'
 # containing the contents of the file or directory.  In the case of files,
 # the dictionary has two additional keys: `'text_language'`, for the
 # predominant human language found in the text (based on the file header and
@@ -180,10 +185,11 @@ def dir_elements(path, recache=False):
         log.debug('no cached dir_elements found for {}'.format(full_path))
 
     elements = dir_elements_recursive(path)
+    wrapper = {'full_path': full_path, 'elements': elements}
 
     log.debug('caching results for {}'.format(full_path))
-    save_cached_value(full_path, 'dir_elements', elements)
-    return elements
+    save_cached_value(full_path, 'dir_elements', wrapper)
+    return wrapper
 
 
 def dir_elements_recursive(path):
