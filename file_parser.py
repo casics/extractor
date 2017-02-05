@@ -171,7 +171,7 @@ class ElementCollector(ast.NodeVisitor):
                 self.variables.append(node.target.id)
         elif isinstance(node.target, ast.Tuple):
             iterate_tuples(node.target.elts)
-        elif sinstance(node.target, ast.List):
+        elif isinstance(node.target, ast.List):
             self.visit(node.target)
         else:
             log = Logger().get_log()
