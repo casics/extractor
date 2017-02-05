@@ -45,7 +45,7 @@ def word_frequencies_for_repos(repo_ids, lang, uri, key, lowercase=False):
             log.info('Ignoring blank line')
             continue
         log.info('Getting words for {}'.format(id))
-        words = words + extractor.get_words(id, filetype='text')
+        words = words + extractor.get_words(id)
     if lowercase:
         words = [w.lower() for w in words]
     return FreqDist(words).most_common()
