@@ -195,7 +195,6 @@ def dir_elements(path, recache=False):
 def dir_elements_recursive(path):
     from text_extractor import extract_text
     from file_parser import file_elements
-    import pickle
 
     def file_dict(filename, body_elements, code_lang, text_lang):
         return {'name': filename, 'type': 'file', 'body': body_elements,
