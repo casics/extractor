@@ -148,12 +148,6 @@ from human_language import *
 from logger import *
 
 
-# Constants variables.
-# .............................................................................
-
-log = None
-
-
 # Constants for this module.
 # .............................................................................
 
@@ -165,13 +159,9 @@ _extreme_max_file_size = 5*1024*1024
 # Main functions
 # .............................................................................
 
-def dir_elements(path):
+def dir_elements(path, recache=False):
     from text_extractor import extract_text
     from file_parser import file_elements
-
-    def file_dict(filename, body_elements, code_lang, text_lang):
-        return {'name': filename, 'type': 'file', 'body': body_elements,
-                'text_language': text_lang, 'code_language': code_lang}
 
     full_path = os.path.join(os.getcwd(), path)
     log = Logger().get_log()
@@ -179,7 +169,35 @@ def dir_elements(path):
         log.error('Not a directory: {}'.format(full_path))
         raise ValueError('Not a directory: {}'.format(full_path))
 
+    cached_elements = cached_value(full_path, 'dir_elements')
+    if cached_elements:
+        if recache:
+            log.debug('ignoring cached dir_elements for {}'.format(full_path))
+        else:
+            log.debug('returning cached dir_elements for {}'.format(full_path))
+            return cached_elements
+    else:
+        log.debug('no cached dir_elements found for {}'.format(full_path))
+
+    elements = dir_elements_recursive(path)
+
+    log.debug('caching results for {}'.format(full_path))
+    save_cached_value(full_path, 'dir_elements', elements)
+    return elements
+
+
+def dir_elements_recursive(path):
+    from text_extractor import extract_text
+    from file_parser import file_elements
+    import pickle
+
+    def file_dict(filename, body_elements, code_lang, text_lang):
+        return {'name': filename, 'type': 'file', 'body': body_elements,
+                'text_language': text_lang, 'code_language': code_lang}
+
     # Recursive directory walker.
+    full_path = os.path.join(os.getcwd(), path)
+    log = Logger().get_log()
     log.debug('beginning traversal of {}'.format(full_path))
     walker = os.walk(path)
 
@@ -229,10 +247,10 @@ def dir_elements(path):
             log.warn('unrecognized file: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
-            contents.append(dir_elements(dir))
+            contents.append(dir_elements_recursive(dir))
 
-        log.debug('finished traversal of {}'.format(full_path))
-        return {'name': path, 'type': 'dir', 'body': contents}
+    log.debug('finished traversal of {}'.format(full_path))
+    return {'name': path, 'type': 'dir', 'body': contents}
 
 
 # Utilities.
@@ -261,6 +279,7 @@ def python_file(filename):
         try:
             return 'Python' in file_magic(filename)
         except Exception as e:
+            log = Logger().get_log()
             log.error('unable to check if {} is a Python file: {}'.format(filename, e))
             log.error(e)
     return False
@@ -293,6 +312,7 @@ def probably_text(filename):
     try:
         return 'text' in file_magic(filename)
     except Exception as e:
+        log = Logger().get_log()
         log.error('error trying to get magic for {}'.format(filename))
         log.error(e)
         return False
@@ -303,11 +323,11 @@ def probably_text(filename):
 
 import plac
 
-def run_dir_parser(debug=False, ppr=False, loglevel='debug', *file):
+def run_dir_parser(debug=False, ppr=False, loglevel='debug', recache=False, *file):
     '''Test dir_parser.py.'''
     if len(file) < 1:
         raise SystemExit('Need a directory as argument')
-    log = Logger('dir_parser')
+    log = Logger('dir_parser').get_log()
     if debug:
         log.set_level('debug')
     else:
@@ -315,7 +335,7 @@ def run_dir_parser(debug=False, ppr=False, loglevel='debug', *file):
     filename = file[0]
     if not os.path.exists(filename):
         raise ValueError('Directory {} not found'.format(filename))
-    e = dir_elements(filename)
+    e = dir_elements(filename, recache)
     if debug:
         import ipdb; ipdb.set_trace()
     if ppr:
@@ -328,6 +348,7 @@ run_dir_parser.__annotations__ = dict(
     debug    = ('drop into ipdb after parsing',     'flag',   'd'),
     ppr      = ('use pprint to print result',       'flag',   'p'),
     loglevel = ('logging level: "debug" or "info"', 'option', 'L'),
+    recache  = ('invalidate the cache',             'flag',   'r'),
     file     = 'directory to parse',
 )
 
