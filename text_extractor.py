@@ -346,7 +346,7 @@ def extract_text_words(body):
     # like 'handleFileUpload' and yet won't screw up 'GPSmodule'.
     tmp = []
     for w in words:
-        tmp = tmp + naive_camelcase_split(w)
+        tmp = tmp + safe_camelcase_split(w)
     words = tmp
     # Lowercase words that are capitalized (but not others).
     tmp = []
