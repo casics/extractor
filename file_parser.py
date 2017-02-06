@@ -73,7 +73,17 @@ _ignorable_names = [
     '__ror__', '__round__', '__rpow__', '__rrshift__', '__rshift__',
     '__rsub__', '__rtruediv__', '__rxor__', '__set__', '__setitem__',
     '__sizeof__', '__str__', '__sub__', '__truediv__', '__trunc__',
-    '__unicode__', '__xor__', '__import__',
+    '__unicode__', '__xor__', '__import__', '__next__', '__call__',
+    '__bytes__', '__bool__', '__getattr__', '__getattribute__', '__setattr__',
+    '__delattr__', '__set_name__', '__slots__', '__init_subclass__',
+    '__prepare__', '__length_hint__', '__enter__', '__exit__', '__await__',
+    '__aiter__', '__anext__', '__aenter__', '__aexit__',
+
+    # Python special attribute names.
+    '__doc__', '__name__', '__qualname__', '__module__', '__defaults__',
+    '__code__', '__globals__', '__dict__', '__closure__', '__annotations__',
+    '__kwdefaults__', '__self__', '__func__', '__instancecheck__',
+    '__subclasscheck__', 'metaclass',
 
     # Common Python built-in functions.
     # See https://docs.python.org/3/library/functions.html
@@ -86,14 +96,16 @@ _ignorable_names = [
     'object', 'oct', 'ord', 'pow', 'print', 'property', 'range',
     'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted',
     'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'self',
-    'zip',
+    'zip', 'throw', 'raise', 'yield',
 
     # Additional common Python functions.
     'add', 'get', 'join', 'startswith', 'endswith', 'strip',
     'find', 'format', 'index', 'lstrip', 'rstrip', 'replace', 'sub',
     'pop', 'popitem', 'values', 'update', 'copy', 'clear',
     'iter', 'items', 'keys', 'append', 'appendleft', 'ValueError',
-    'SystemExit', 'StopIteration', 'KeyError', 'RuntimeError'
+    'SystemExit', 'StopIteration', 'KeyError', 'RuntimeError',
+    'to_bytes', 'from_bytes', 'bit_length', 'is_integer', 'as_integer_ratio',
+    'fromhex',
 ]
 
 
