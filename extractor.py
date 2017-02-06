@@ -58,6 +58,15 @@ class Extractor(object):
         self._log = log if log else Logger().get_log()
 
 
+    def _reconnect(self):
+        try:
+            self._extractor._pyroReconnect(tries=10)
+            return True
+        except Exception:
+            self._log.error('Lost connection to server: {}'.format(err))
+            return False
+
+
     def _sanity_check_id(self, id):
         if not isinstance(id, int) and not isinstance(id, str):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
@@ -71,30 +80,45 @@ class Extractor(object):
         self._sanity_check_id(id)
         try:
             return self._extractor.get_repo_path(id)
+        except Pyro4.errors.ConnectionClosedError:
+            # Network connection lost.
+            self._log.error('Network connection lost: {}'.format(err))
+            return []
         except Exception as err:
             self._log.error('Exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+            return ''
 
 
     def get_elements(self, id, recache=False):
         self._sanity_check_id(id)
         try:
             return self._extractor.get_elements(id, recache)
+        except Pyro4.errors.ConnectionClosedError:
+            # Network connection lost.
+            self._log.error('Network connection lost: {}'.format(err))
+            return []
         except Exception as err:
             self._log.error('Exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+            return []
 
 
     def get_words(self, id, filetype='all', recache=False):
         self._sanity_check_id(id)
         try:
             return self._extractor.get_words(id, filetype, recache)
+        except Pyro4.errors.ConnectionClosedError:
+            # Network connection lost.
+            self._log.error('Network connection lost: {}'.format(err))
+            return []
         except Exception as err:
             self._log.error('Exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+            return []
 
 
 # Client/server application.
@@ -149,6 +173,7 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
             os.setsid()
         Pyro4.config.DETAILED_TRACEBACK = True
         Pyro4.config.COMMTIMEOUT = 0.0
+        Pyro4.config.MAX_RETRIES = 10
         with Pyro4.Daemon(host=host, port=port) as daemon:
             daemon._pyroHmacKey = hmac
             handler = ExtractorServer(daemon, host, port, root, log)
