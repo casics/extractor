@@ -46,8 +46,12 @@ def word_frequencies_for_repos(repo_ids, lang, uri, key, lowercase=False):
             continue
         log.info('Getting words for {}'.format(id))
         words = words + extractor.get_words(id)
-    if lowercase:
+    if lowercase == 'all':
+        log.info('Lower-casing all words.')
         words = [w.lower() for w in words]
+    elif lowercase == 'capitalized':
+        log.info('Lower-casing capitalized words but leaving others alone.')
+        words = [w.lower() if w.istitle() else w for w in words]
     return FreqDist(words).most_common()
 
 
