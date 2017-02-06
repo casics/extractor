@@ -389,11 +389,13 @@ class RegexpReplacer(object):
 # .............................................................................
 
 def extract_text_words(body):
-    '''Tokenizes text in 'body'.  Removes URLs and other things.  Lowercases
-    capitalized words but doesn't change all-caps words and mixed-case words
-    that begin with a capital (e.g., XMatrix).  Splits pure camel-case
-    identifiers and treats them as individual words: 'fooBar' -> 'foo',
-    'bar'. Removes URLs and words that have no letters.
+    '''Tokenizes text in 'body' and mildly normalizes the text, for example
+    to expand some contractions like "let's".  Removes URLs, mail addresses,
+    and words that have non-ASCII characters or no letters at all.  Splits
+    tokens at non-letter characters, including numbers, hyphens, underscores,
+    slashes and quotes.  Does not change capitalization of words.  Splits
+    pure, forward camel-case identifiers and treats them as individual words:
+    'fooBar' -> 'foo', 'bar'.
     '''
     words = flatten(tokenize_text(body))
     # Remove words that are URLs.
@@ -409,12 +411,9 @@ def extract_text_words(body):
     words = [w for w in words if re.search(r'[a-zA-Z]+', w)]
     # Remove terms that contain unusual characters embedded, like %s.
     words = [w for w in words if not re.search(r'[%]', w)]
-    # Do naive camel case splitting: this is relatively safe for identifiers
+    # Do strict camel case splitting: this is relatively safe for identifiers
     # like 'handleFileUpload' and yet won't screw up 'GPSmodule'.
-    words = flatten(safe_camelcase_split(w) for w in words)
-    # Lowercase words that are capitalized (but not others).
-    words = [w.lower() if w.istitle() else w for w in words]
-    return list(flatten(words))
+    return list(flatten(safe_camelcase_split(w) for w in words))
 
 
 def extract_code_words(body):
@@ -579,8 +578,10 @@ def unsoupify(soup):
 
 def word_frequencies(word_list, lowercase=False):
     from nltk.probability import FreqDist
-    if lowercase:
+    if lowercase == 'all':
         word_list = [w.lower() for w in word_list]
+    elif lowercase == 'capitalized':
+        word_list = [w.lower() if w.istitle() else w for w in word_list]
     return FreqDist(word_list).most_common()
 
 
