@@ -336,10 +336,7 @@ def extract_text_words(body):
     # Remove / from paths to leave individual words: /usr/bin -> usr bin
     # Also split words at hyphens and other delimiters while we're at it.
     # Also split words at numbers, e.g., "rtf2html" -> "rtf", "html".
-    tmp = []
-    for w in words:
-        tmp = tmp + re.split(r'[-/_.:\\0123456789’*]', w)
-    words = tmp
+    words = flatten(re.split(r'[-/_.:\\0123456789’*]', w) for w in words)
     # Remove words that contain non-ASCII characters.
     words = [w for w in words if is_ascii(w)]
     # Remove terms that have no letters.
@@ -348,16 +345,10 @@ def extract_text_words(body):
     words = [w for w in words if not re.search(r'[%]', w)]
     # Do naive camel case splitting: this is relatively safe for identifiers
     # like 'handleFileUpload' and yet won't screw up 'GPSmodule'.
-    tmp = []
-    for w in words:
-        tmp = tmp + safe_camelcase_split(w)
-    words = tmp
+    words = flatten(safe_camelcase_split(w) for w in words)
     # Lowercase words that are capitalized (but not others).
-    tmp = []
-    for w in words:
-        tmp.append(w.lower() if w.istitle() else w)
-    words = tmp
-    return words
+    words = [w.lower() if w.istitle() else w for w in words]
+    return list(flatten(words))
 
 
 def extract_code_words(body):
