@@ -75,6 +75,34 @@ def naive_camelcase_split(identifier):
     'Baz', but it won't change SQLlite or similar identifiers.'''
     return re.sub(r'((?<=[a-z])[A-Z])', r' \1', identifier).split()
 
+
+def safe_camelcase_split(identifier):
+    '''Split identifiers by forward camel case only, i.e., lower-to-upper case
+    transitions.  This means it will split fooBarBaz into 'foo', 'Bar' and
+    'Baz', but it won't change SQLlite or similar identifiers.  Does not
+    split identifies that have multiple adjacent uppercase letters.'''
+    if re.search('[A-Z][A-Z]', identifier):
+        return [identifier]
+    return re.sub(r'((?<=[a-z])[A-Z])', r' \1', identifier).split()
+
+
+
 
-# Naive camel case splitter
+# Quick testing.
 # .............................................................................
+
+def quick_test():
+    assert(safe_camelcase_split('foobar')     == ['foobar'])
+    assert(safe_camelcase_split('fooBar')     == ['foo', 'Bar'])
+    assert(safe_camelcase_split('FooBar')     == ['Foo', 'Bar'])
+    assert(safe_camelcase_split('getMAX')     == ['getMAX'])
+    assert(safe_camelcase_split('USERLIB')    == ['USERLIB'])
+    assert(safe_camelcase_split('GPSmodule')  == ['GPSmodule'])
+    assert(safe_camelcase_split('ASTVisitor') == ['ASTVisitor'])
+    assert(safe_camelcase_split('SqlList')    == ['Sql', 'List'])
+    assert(safe_camelcase_split('jLabel')     == ['j', 'Label'])
+    print('Test passed.')
+
+
+if __name__ == '__main__':
+    quick_test()
