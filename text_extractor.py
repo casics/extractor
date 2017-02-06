@@ -35,7 +35,7 @@ import textile
 from   time import sleep
 from   timeit import default_timer as timer
 from   tokenize import tokenize, COMMENT, STRING, NAME
-from   nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
+from   nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters, PunktLanguageVars
 import unicodedata
 
 sys.path.append('../database')
@@ -188,10 +188,56 @@ def clean_plain_text(text):
     return text.strip()
 
 
-_common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
-                       'e.g', 'i.e'])
 _odd_chars = '|<>&+=$%^'
 _odd_char_splitter = str.maketrans(_odd_chars, ' '*len(_odd_chars))
+
+_max_word_length = 60
+
+_common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
+                       'e.g', 'i.e'])
+
+# Contractions can't be done entirely by regexp.  You need to use POS tagging
+# to disambiguate some cases.  However, I believe the following are unique
+# and so we can do them safely.  This list is based in part on the list at
+# https://en.wikipedia.org/wiki/Wikipedia%3aList_of_English_contractions
+# available on 2017-02-06.  An archived copy of that page is available in the
+# Internet Archive and http://archive.is.
+
+_common_contractions = [
+    (r"([Aa])mn’t"                                                   , '\g<1>m not'),
+    (r"([Aa])ren’t"                                                  , '\g<1>re not'),
+    (r"([Cc])an’t"                                                   , '\g<1>annot'),
+    (r"([Ll])et's"                                                   , '\g<1>et us'),
+    (r"([Dd])oesn’t"                                                 , '\g<1>oes not'),
+    (r"([Dd])on’t"                                                   , '\g<1>o not'),
+    (r"([Gg])onna"                                                   , '\g<1>oing to'),
+    (r"([Oo])’clock"                                                 , '\g<1>f the clock'),
+    (r"([Oo])l’"                                                     , '\g<1>ld'),
+    (r"([Ss])han’t"                                                  , '\g<1>hall not'),
+    (r"([Tt])hey’d’ve"                                               , '\g<1>hey would have'),
+    (r"([Ww])ho’d’ve"                                                , '\g<1>ho would have'),
+    (r"([Ww])here’d"                                                 , '\g<1>here did'),
+    (r"([Ww])on’t’ve"                                                , '\g<1>ill not have'),
+    (r"([Ww])on't"                                                   , '\g<1>ill not'),
+    (r"([Ww])hy'd"                                                   , '\g<1>hy did'),
+    (r"([Yy])’all"                                                   , '\g<1>ou all'),
+    (r"([Yy])a'll"                                                   , '\g<1>ou all'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s been"           , '\g<1> has been'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)been" , '\g<1> has\g<2>been'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)done" , '\g<1> has\g<2>done'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)a"    , '\g<1> is\g<2>a'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s not"            , '\g<1> is not'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s got"            , '\g<1> has'),
+    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s"                , '\g<1> is'),
+    (r"([Ii])'m"                                                     , '\g<1> am'),
+    (r"([Aa])in't"                                                   , '\g<1>s not'),
+    (r"([Cc])an't"                                                   , '\g<1>annot'),
+    (r"(\w+)'ve"                                                     , '\g<1> have'),
+    (r"(\w+)'re"                                                     , '\g<1> are'),
+    (r"(\w+)'ll"                                                     , '\g<1> will'),
+    (r"(\w+)n't"                                                     , '\g<1> not'),
+    (r"(\w+)'d"                                                      , '\g<1> would'),
+]
 
 def tokenize_text(seq):
     '''Tokenizes a string containing one or more sentences, and returns a
@@ -199,27 +245,42 @@ def tokenize_text(seq):
     lists representing tokenized words within each sentence.  This does not
     remove stop words or do more advanced NL processing.'''
 
+    def is_word(token):
+        # Returns true if 'token' is plausibly a word.
+        return (token
+                and len(token) <= _max_word_length
+                and re.search(r'[a-zA-Z]', token)
+                and not re.search(r"[^-'a-zA-Z]", token))
+
+    def only_words(sent):
+        # Takes a list and returns a version with only plausible words.
+        return [w for w in sent if is_word(w)]
+
+    class ModifiedPunktLanguageVars(PunktLanguageVars):
+        sent_end_chars = ('.', '?', '!', ':')
+
+    # Replace common contractions that are safe to replace.
+    replacer = RegexpReplacer(_common_contractions)
+    text = replacer.replace(seq)
     # Compress multiple blank lines into one.
-    text = re.sub(r'\n+', '\n', seq)
+    text = re.sub(r'\n+', '\n', text)
     # Remove URLs.
     text = re.sub(constants.url_compiled_regex, '', text)
     # Split words at certain characters that are not used in normal writing.
     text = str.translate(text, _odd_char_splitter)
     # Split the text into sentences.
-    punkt_param = PunktParameters()
-    punkt_param.abbrev_types = _common_abbrevs
-    sentence_splitter = PunktSentenceTokenizer(punkt_param)
-    text = sentence_splitter.tokenize(text, realign_boundaries=True)
+    punkt_vars = ModifiedPunktLanguageVars()
+    sentence_splitter = PunktSentenceTokenizer(lang_vars=punkt_vars)
+    sentences = sentence_splitter.tokenize(text, realign_boundaries=True)
     # Tokenize each sentence individually.
-    text = [nltk.word_tokenize(sent) for sent in text]
-    # Remove terms that don't have any letters in them.
-    sentences = []
-    for sent in text:
-        sentences.append([word for word in sent if re.search(r'[a-zA-Z]', word)])
+    sentences = [nltk.word_tokenize(sent) for sent in sentences]
+    # Filter out items that don't have any letters in them, or are too long.
+    sentences = [only_words(sent) for sent in sentences]
     # Remove embedded quote characters & other oddball characters in strings.
     sentences = [[re.sub('["`\',]', '', word) for word in sent] for sent in sentences]
     # Remove blanks and return the result
-    return [x for x in sentences if x]
+    sentences = [x for x in sentences if x]
+    return sentences
 
 
 def all_words(wrapper, filetype='all', recache=False):
@@ -300,7 +361,31 @@ def all_words_recursive(elements, filetype='all'):
     return words
 
 
-# Utilities.
+# Utility classes.
+# .............................................................................
+
+# Code from https://github.com/japerk/nltk3-cookbook/blob/master/replacers.py
+# 
+
+class RegexpReplacer(object):
+    """ Replaces regular expression in a text.
+    >>> replacer = RegexpReplacer()
+    >>> replacer.replace("can't is a contraction")
+    'cannot is a contraction'
+    >>> replacer.replace("I should've done that thing I didn't do")
+    'I should have done that thing I did not do'
+    """
+    def __init__(self, patterns):
+        self.patterns = [(re.compile(regex), repl) for (regex, repl) in patterns]
+
+    def replace(self, text):
+        s = text
+        for (pattern, repl) in self.patterns:
+            s = re.sub(pattern, repl, s)
+        return s
+
+
+# Utility functions.
 # .............................................................................
 
 def extract_text_words(body):
