@@ -14,7 +14,7 @@ The extractor `get_words(...)` function returns a list of textual words found in
 * `get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
 * `get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
 
-For text files, it automatically converts some structured text files and some document formats into plain text.  These are currently: HTML, Markdown, AsciiDoc, reStructured Text, RTF, Textile, LaTeX/TeX, DOCX and ODT.  For code files, it uses the text it finds in the (1) file header (or file docstring, in the case of Python), (2) comments in the file, and (3) documentation strings on classes and functions.
+For text files, it automatically converts some structured text files and some document formats into plain text.  These are currently: HTML, Markdown, AsciiDoc, reStructured Text, RTF, TeXinfo, Textile, LaTeX/TeX, DOCX and ODT.  For code files, it uses the text it finds in the (1) file header (or file docstring, in the case of Python), (2) comments in the file, and (3) documentation strings on classes and functions.
 
 The list of words is processed to a limited extent.  The transformations are:
 
