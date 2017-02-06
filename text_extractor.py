@@ -230,7 +230,7 @@ _common_contractions = [
     # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s got"            , '\g<1> has'),
     # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s"                , '\g<1> is'),
     (r"([Ii])'m"                                                     , '\g<1> am'),
-    (r"([Aa])in't"                                                   , '\g<1>s not'),
+    (r"ain't"                                                        , 'is not'),
     (r"([Cc])an't"                                                   , '\g<1>annot'),
     (r"(\w+)'ve"                                                     , '\g<1> have'),
     (r"(\w+)'re"                                                     , '\g<1> are'),
