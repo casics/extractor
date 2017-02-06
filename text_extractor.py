@@ -111,6 +111,10 @@ def extract_text(filename, encoding='utf-8', retried=False):
                           .format(ext, filename))
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
+            elif ext in ['.texi', '.texinfo']:
+                log.debug('Extracting text from TeXinfo file {}'.format(filename))
+                html = html_from_texinfo_file(filename)
+                return convert_html(html)
             # Turns out pypandoc can't handle .org files, though Pandoc can.
             # elif ext in ['.org']:
             #     log.debug('Extracting text from org-mode file {}'.format(filename))
@@ -395,6 +399,14 @@ def html_from_rtf_file(filename):
 def html_from_roff_file(filename):
     '''Convert Unix man page (roff) file to HTML.'''
     cmd = ['mandoc', '-Thtml', os.path.join(os.getcwd(), filename)]
+    return output_from_external_converter(cmd)
+
+
+def html_from_texinfo_file(filename):
+    '''Convert GNU TeXinfo file to HTML.'''
+    cmd = ['makeinfo', '--html', '--no-headers', '--no-split',
+           '--no-number-sections', '--disable-encoding', '--no-validate',
+           '--no-warn', '-o', '-', os.path.join(os.getcwd(), filename)]
     return output_from_external_converter(cmd)
 
 

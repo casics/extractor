@@ -73,6 +73,8 @@ common_text_markup_extensions = [
     '.rst',
     '.tex',
     '.textile',
+    '.texi',
+    '.texinfo',
     '.wiki',
 ]
 
