@@ -191,7 +191,7 @@ def clean_plain_text(text):
 _odd_chars = '|<>&+=$%^'
 _odd_char_splitter = str.maketrans(_odd_chars, ' '*len(_odd_chars))
 
-_max_word_length = 60
+_max_word_length = 80
 
 _common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
                        'e.g', 'i.e'])
@@ -239,18 +239,30 @@ _common_contractions = [
     (r"(\w+)'d"                                                      , '\g<1> would'),
 ]
 
+def is_word(token):
+    # Returns true if 'token' is plausibly a word.
+    return (token
+            and len(token) <= _max_word_length
+            # Must have at least one letter.
+            and re.search(r'[a-zA-Z]', token)
+            # Ignore tokens that have un-text-like characters in them.
+            and not re.search(r"[^-'a-zA-Z]", token)
+            # Ignore tokens containing strings of 5 or more repeated chars.
+            # (Has to be 5 because roman numerals can have 4 I's or M's.)
+            and not re.search(r'(.)\1{4,}', token)
+            # Ignore things that look like DNA or RNA sequences (!).
+            # This is kind of conservative to avoid catching other things.
+            # E.g.: "baggage", "Atacama", "attachment", "datatable".
+            and not re.search(r'[atgc]{6,}', token, re.I)
+            and not re.search(r'[augc]{6,}', token, re.I)
+            # Ignore repeating shit like "aaabbb".
+            and not re.search(r'(.)\1{2,}(.)\2{2,}', token))
+
 def tokenize_text(seq):
     '''Tokenizes a string containing one or more sentences, and returns a
     list of lists, with the outer list representing sentences and the inner
     lists representing tokenized words within each sentence.  This does not
     remove stop words or do more advanced NL processing.'''
-
-    def is_word(token):
-        # Returns true if 'token' is plausibly a word.
-        return (token
-                and len(token) <= _max_word_length
-                and re.search(r'[a-zA-Z]', token)
-                and not re.search(r"[^-'a-zA-Z]", token))
 
     def only_words(sent):
         # Takes a list and returns a version with only plausible words.
