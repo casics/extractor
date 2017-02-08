@@ -95,6 +95,11 @@ common_ignorable_files = [
     '.gitmodules',
 ]
 
+common_ignorable_dirs = [
+    '.git',
+    '.svn',
+]
+
 common_unhandled_files = [
     'build.xml',
     'capfile',
