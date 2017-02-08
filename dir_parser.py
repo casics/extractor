@@ -244,12 +244,7 @@ def dir_elements_recursive(path):
             elif python_file(file):
                 log.debug('Python file: {}'.format(file))
                 elements = file_elements(file)
-                lang = 'en'
-                if elements:
-                    strings = [x[0] for x in elements['strings']]
-                    comments = elements['comments']
-                    header = [elements['header']]
-                    lang = majority_language(header + comments + strings)
+                lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
             elif document_file(file) and not excessively_large_file(file):
@@ -263,12 +258,13 @@ def dir_elements_recursive(path):
             log.warn('unrecognized file: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
-            contents.append(dir_elements_recursive(dir))
+            if ignorable_dir(dir):
+                log.debug('ignorable directory: {}'.format(dir))
+            else:
+                contents.append(dir_elements_recursive(dir))
 
     log.debug('finished traversal of {}'.format(full_path))
     return {'name': path, 'type': 'dir', 'body': contents}
-
-
 
 
 # Utilities.
@@ -282,6 +278,10 @@ def ignorable_file(filename):
     return (not os.path.isfile(filename)
             or os.path.getsize(filename) > _extreme_max_file_size
             or any(fnmatch(filename, pat) for pat in constants.common_ignorable_files))
+
+
+def ignorable_dir(dirname):
+    return any(fnmatch(dirname, pat) for pat in constants.common_ignorable_dirs)
 
 
 def unhandled_file(filename):
@@ -334,6 +334,19 @@ def probably_text(filename):
         log.error('error trying to get magic for {}'.format(filename))
         log.error(e)
         return False
+
+
+def elements_text_language(elements):
+    if not elements:
+        return 'unknown'
+    strings = [x[0] for x in elements['strings']]
+    comments = elements['comments']
+    header = [] if not elements['header'] else [elements['header']]
+    if len(header) == 0 and len(comments) == 0:
+        # If it's almost entirely code, we call it English.
+        return 'en'
+    else:
+        return majority_language(header + comments + strings)
 
 
 # Quick test driver.
