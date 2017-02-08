@@ -56,16 +56,6 @@ if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
 
 
-# Global constants
-# .............................................................................
-
-# Common punctuation that doesn't get a period after it.
-_okay_endings = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
-                 # The next line is filled with special non-ascii characters.
-                 # Some of these look like they have spaces, but they don't.
-                 '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
-
-
 # Main functions
 # .............................................................................
 
@@ -148,11 +138,23 @@ def extract_text(filename, encoding='utf-8', retried=False):
                   .format(ext, filename, e))
         return []
 
+_common_ignored             = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
+_common_ignored_regexp      = re.compile(_common_ignored, re.IGNORECASE)
+_divider_line_regexp        = re.compile(r'^\W*[-=_.+^*#~]{2,}\W*$', flags=re.MULTILINE)
+_multiple_blank_line_regexp = re.compile(r'\n[ \t]*\n\n+')
+_two_newlines_regexp        = re.compile(r'(?<!\n)\n(?=[^\n])', flags=re.MULTILINE)
+_multiple_spaces_regexp     = re.compile(r'\S+')
 
-_common_ignored = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
-_common_ignored_regex = re.compile(_common_ignored, re.IGNORECASE)
+_rst_tags                   = r'(:param|:return|:type|:rtype)'
+_rst_tags_regexp            = re.compile(_rst_tags, flags=re.IGNORECASE)
 
-_rst_tags = r':param|:return|:type|:rtype'
+# Common punctuation that doesn't get a period after it.
+# Note the next line is filled with special non-ascii characters.
+# Some of these look like they have spaces in them, but they don't!
+_okay_endings = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
+                 '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
+_okay_endings_regexp = re.compile(r'([^'+''.join(_okay_endings)+r'])([ \t]*)\n\n',
+                                  flags=re.MULTILINE)
 
 def clean_plain_text(text):
     '''Do limited cleaning of text that appears in Python code.'''
@@ -166,35 +168,49 @@ def clean_plain_text(text):
     # Get rid of funky Unicode characters
     text = unicodedata.normalize('NFKD', text)
     # Remove obvious divider lines, like lines of repeated dashes.
-    text = re.sub(r'^\W*[-=_.+^*#~]{2,}\W*$', ' ', text, flags=re.MULTILINE)
+    text = re.sub(_divider_line_regexp, ' ', text)
     # Compress multiple blank lines.
-    text = re.sub(r'\n[ \t]*\n\n+', '\n\n', text)
+    text = re.sub(_multiple_blank_line_regexp, '\n\n', text)
     # Turn single newlines into spaces.
-    text = re.sub(r'(?<!\n)\n(?=[^\n])', ' ', text, flags=re.MULTILINE)
+    text = re.sub(_two_newlines_regexp, ' ', text)
     # Massage Sphinx style doc patterns to make it more clear where
     # sentence boundaries would be.
-    text = re.sub(r'('+_rst_tags+')', r'\n\n\1', text, flags=re.IGNORECASE)
+    text = re.sub(_rst_tags_regexp, r'\n\n\1', text)
     # Remove random other things that are useless to us.
-    text = re.sub(_common_ignored_regex, '', text)
+    text = re.sub(_common_ignored_regexp, '', text)
     # If there are two newlines in a row, treat it like a paragraph break,
     # and see if the text prior to that point has an ending period.  If it
     # doesn't, add one, on the heuristic basis that it's likely a sentence end.
-    text = re.sub(r'([^'+''.join(_okay_endings)+r'])([ \t]*)\n\n',
-                  r'\1.\2\n\n', text, flags=re.MULTILINE)
+    text = re.sub(_okay_endings_regexp, r'\1.\2\n\n', text)
     # Compress multiple spaces into one.
-    text = re.sub(r' +',  ' ', text)
-    text = re.sub(r'\t+', ' ', text)
+    text = re.sub(_multiple_spaces_regexp,  ' ', text)
     # Strip blank space at the beginning and end of the whole thing.
     return text.strip()
 
+
+_common_abbrevs = [
+    "Adm.", "Ala.", "Ariz.", "Ark.", "Aug.", "B.C.", "Bancorp.", "Bhd.",
+    "Brig.", "Bros.", "CO.", "CORP.", "COS.", "ca.", "Calif.", "Capt.",
+    "Cie.", "Cmdr.", "Co.", "Col.", "Colo.", "Conn.", "Corp.", "Cos.",
+    "Cpl.", "D-Mass.", "D.C.", "Dec.", "Del.", "Dept.", "Dr.", "E.g.",
+    "Etc.", "Ex.", "Exch.", "Feb.", "Fla.", "Fri.", "Ga.", "Gen.", "Gov.",
+    "INC.", "Ill.", "Inc.", "Ind.", "Jan.", "Jansz.", "Jos.", "Jr.", "Kan.",
+    "Ky.", "L.A.", "La.", "Lt.", "Ltd.", "Maj.", "Mass.", "Md.", "Messrs.",
+    "Mfg.", "Mich.", "Minn.", "Miss.", "Mo.", "Mon.", "Mr.", "Mrs.", "Ms.",
+    "Mt.", "N.C.", "N.J.", "N.Y.", "NFATc.", "Neb.", "Nev.", "No.", "Nos.",
+    "Nov.", "O.J.", "Oct.", "Okla.", "Ont.", "Ore.", "P.T.", "Pa.", "Ph.",
+    "Prof.", "Prop.", "Pty.", "R.I.", "R.J.", "Rep.", "Reps.", "Rev.",
+    "S.C.", "Sat.", "Sen.", "Sens.", "Sep.", "Sept.", "Sgt.", "Sol.", "Sr.",
+    "St.", "Sun.", "Tenn.", "Tex.", "Thu.", "Tue.", "U.K.", "U.N.", "U.S.",
+    "Va.", "Vt.", "W.J.", "W.Va.", "Wash.", "Wed.", "Wis.", "Wyo.", "a.m.",
+    "cit.", "def.", "ed.", "eds.", "e.g.", "etc.", "ft.", "i.e.", "op.",
+    "p.m.", "pp.", "sc.", "v.", "vs.",
+]
 
 _odd_chars = '|<>&+=$%^'
 _odd_char_splitter = str.maketrans(_odd_chars, ' '*len(_odd_chars))
 
 _max_word_length = 80
-
-_common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
-                       'e.g', 'i.e'])
 
 # Contractions can't be done entirely by regexp.  You need to use POS tagging
 # to disambiguate some cases.  However, I believe the following are unique
@@ -203,64 +219,79 @@ _common_abbrevs = set(['dr', 'vs', 'mr', 'mrs', 'ms', 'prof', 'inc', 'llc',
 # available on 2017-02-06.  An archived copy of that page is available in the
 # Internet Archive and http://archive.is.
 
+# FIXME: handling case sensitivity this way is stupid. Should avoid the
+# tests here and instead use code to fix up the case of the match, like what
+# they do in http://www.clips.uantwerpen.be/BiographTA/tokenizer.py
+
 _common_contractions = [
-    (r"([Aa])mn’t"                                                   , '\g<1>m not'),
-    (r"([Aa])ren’t"                                                  , '\g<1>re not'),
-    (r"([Cc])an’t"                                                   , '\g<1>annot'),
-    (r"([Ll])et's"                                                   , '\g<1>et us'),
-    (r"([Dd])oesn’t"                                                 , '\g<1>oes not'),
-    (r"([Dd])on’t"                                                   , '\g<1>o not'),
-    (r"([Gg])onna"                                                   , '\g<1>oing to'),
-    (r"([Oo])’clock"                                                 , '\g<1>f the clock'),
-    (r"([Oo])l’"                                                     , '\g<1>ld'),
-    (r"([Ss])han’t"                                                  , '\g<1>hall not'),
-    (r"([Tt])hey’d’ve"                                               , '\g<1>hey would have'),
-    (r"([Ww])ho’d’ve"                                                , '\g<1>ho would have'),
-    (r"([Ww])here’d"                                                 , '\g<1>here did'),
-    (r"([Ww])on’t’ve"                                                , '\g<1>ill not have'),
-    (r"([Ww])on't"                                                   , '\g<1>ill not'),
-    (r"([Ww])hy'd"                                                   , '\g<1>hy did'),
-    (r"([Yy])’all"                                                   , '\g<1>ou all'),
-    (r"([Yy])a'll"                                                   , '\g<1>ou all'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s been"           , '\g<1> has been'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)been" , '\g<1> has\g<2>been'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)done" , '\g<1> has\g<2>done'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)a"    , '\g<1> is\g<2>a'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s not"            , '\g<1> is not'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s got"            , '\g<1> has'),
-    # (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s"                , '\g<1> is'),
-    (r"([Ii])'m"                                                     , '\g<1> am'),
-    (r"ain't"                                                        , 'is not'),
-    (r"([Cc])an't"                                                   , '\g<1>annot'),
-    (r"(\w+)'ve"                                                     , '\g<1> have'),
-    (r"(\w+)'re"                                                     , '\g<1> are'),
-    (r"(\w+)'ll"                                                     , '\g<1> will'),
-    (r"(\w+)n't"                                                     , '\g<1> not'),
-    (r"(\w+)'d"                                                      , '\g<1> would'),
+    (r"Ain't"                                             , 'Is not'),
+    (r"ain't"                                             , 'is not'),
+    (r"([Aa])mn[’']t"                                     , '\g<1>m not'),
+    (r'[Cc]annot'                                         , '\g<1>an not'),
+    (r"([Dd])oesn[’']t"                                   , '\g<1>oes not'),
+    (r"([Gg])onna"                                        , '\g<1>oing to'),
+    (r"([Ii])'m"                                          , '\g<1> am'),
+    (r"([Ii])t's\s+been"                                  , '\g<1>t has been'),
+    (r"([Ii])t's\s+not"                                   , '\g<1>t is not'),
+    (r"([Ii])sn't\s+([Ii]t|[Tt]hat|[Tt]his|[Ss]he|[Hh]e)" , '\g<1>s \g<2> not'),
+    (r"([Ll])et's"                                        , '\g<1>et us'),
+    (r"([Oo])[’']clock"                                   , '\g<1>f the clock'),
+    (r"([Oo])l[’']"                                       , '\g<1>ld'),
+    (r"([Ss])han[’']t"                                    , '\g<1>hall not'),
+    (r"([Tt])hey[’']d[’']ve"                              , '\g<1>hey would have'),
+    (r"([Ww])ho[’']d[’']ve"                               , '\g<1>ho would have'),
+    (r"([Ww])on[’']t[’']ve"                               , '\g<1>ill not have'),
+    (r"([Ww])here[’']d"                                   , '\g<1>here did'),
+    (r"([Ww])hy'd"                                        , '\g<1>hy did'),
+    (r"([Yy])[’']all"                                     , '\g<1>ou all'),
+    (r"([Yy])a'll"                                        , '\g<1>ou all'),
+
+    (r"([Aa])ren't\s+([Yy]ou|[Tt]hey|[Ww]e)"              , '\g<1>re \g<2> not'),
+    (r"([Aa])ren[’']t\s+([Ii])"                           , '\g<1>m \g<2> not'),
+    (r"([Aa])ren[’']t"                                    , '\g<1>re not'),
+
+    (r"([Cc])an[’']t\s+([Yy]ou|[Tt]hey|[Ww]e)"            , '\g<1>an \g<2> not'),
+    (r"([Cc])an[’']t\s+([Ii])"                            , '\g<1>an \g<2> not'),
+    (r"([Cc])an[’']t"                                     , '\g<1>an not'),
+
+    (r"([Dd])idn[’']t\s+([Yy]ou|[Tt]hey|[Ww]e)"           , '\g<1>id \g<2> not'),
+    (r"([Dd])idn[’']t\s+([Ii])"                           , '\g<1>id \g<2> not'),
+    (r"([Dd])idn[’']t"                                    , '\g<1>id not'),
+
+    (r"([Dd])on[’']t\s+([Yy]ou|[Tt]hey|[Ww]e)"            , '\g<1>o \g<2> not'),
+    (r"([Dd])on[’']t\s+([Ii])"                            , '\g<1>o \g<2> not'),
+    (r"([Dd])on[’']t"                                     , '\g<1>o not'),
+
+    (r"([Ww])on[’']t\s+([Ii])"                            , '\g<1>ill \g<2> not'),
+    (r"([Ww])on[’']t\s+([Yy]ou|[Tt]hey|[Ww]e)"            , '\g<1>ill \g<2> not'),
+    (r"([Ww])on't"                                        , '\g<1>ill not'),
+
+    (r"'cause"                                            , 'because'),
+    (r"'nother"                                           , 'another'),
+    (r"'em"                                               , 'them'),
+    (r"'till"                                             , 'until'),
+    (r"'tis"                                              , 'it is'),
+    (r"'twas"                                             , 'it was'),
+    (r"(\w+)'ve"                                          , '\g<1> have'),
+    (r"(\w+)'re"                                          , '\g<1> are'),
+    (r"(\w+)'ll"                                          , '\g<1> will'),
+    (r"(\w+)n't"                                          , '\g<1> not'),
+    (r"(\w+)'d"                                           , '\g<1> would'),
 ]
 
-def is_word(token):
-    # Returns true if 'token' is plausibly a word.
-    return (token
-            and len(token) <= _max_word_length
-            # Must have at least one letter.
-            and re.search(r'[a-zA-Z]', token)
-            # Ignore tokens that have un-text-like characters in them.
-            and not re.search(r"[^-'a-zA-Z]", token)
-            # Ignore tokens containing strings of 5 or more repeated chars.
-            # (Has to be 5 because roman numerals can have 4 I's or M's.)
-            and not re.search(r'(.)\1{4,}', token)
-            # Ignore things that look like DNA or RNA sequences (!).
-            # This is kind of conservative to avoid catching other things.
-            # E.g.: "baggage", "Atacama", "attachment", "datatable".
-            and not re.search(r'[atgc]{6,}', token, re.I)
-            and not re.search(r'[augc]{6,}', token, re.I)
-            # Ignore USPS Intelligent Mail Barcode (IMb) barcodes.
-            and not re.search(r'[adft]{31,}', token, re.I)
-            # Ignore what looks like the alphabet.
-            and not re.search(r'abcdefghijklmno', token, re.I)
-            # Ignore repeating shit like "aaabbb".
-            and not re.search(r'(.)\1{2,}(.)\2{2,}', token))
+# These work for some cases, but the problem is there are many more words
+# that could go in the placeholders.  This is thus incomplete, and I'm
+# not sure if it's a good idea to do some random set of cases and not other.
+#
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s been"           , '\g<1> has been'),
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)been" , '\g<1> has\g<2>been'),
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)done" , '\g<1> has\g<2>done'),
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s(\s+\w+\s+)a"    , '\g<1> is\g<2>a'),
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s not"            , '\g<1> is not'),
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s got"            , '\g<1> has'),
+# (r"([Tt]hat|[Ww]hat|[Ii]t|[Ww]ho|[Ss]he|[Hh]e|[Ss]ome(one|thing))'s"                , '\g<1> is'),
+
+_stray_punct_regexp = re.compile('["`\',]')
 
 def tokenize_text(seq):
     '''Tokenizes a string containing one or more sentences, and returns a
@@ -271,6 +302,10 @@ def tokenize_text(seq):
     def only_words(sent):
         # Takes a list and returns a version with only plausible words.
         return [w for w in sent if is_word(w)]
+
+    def clean_words(sent):
+        # Takes a list of words and cleans them to remove stray punctuation.
+        return [re.sub(_stray_punct_regexp, '', word) for word in sent]
 
     class ModifiedPunktLanguageVars(PunktLanguageVars):
         sent_end_chars = ('.', '?', '!', ':')
@@ -293,7 +328,7 @@ def tokenize_text(seq):
     # Filter out items that don't have any letters in them, or are too long.
     sentences = [only_words(sent) for sent in sentences]
     # Remove embedded quote characters & other oddball characters in strings.
-    sentences = [[re.sub('["`\',]', '', word) for word in sent] for sent in sentences]
+    sentences = [clean_words(sent) for sent in sentences]
     # Remove blanks and return the result
     sentences = [x for x in sentences if x]
     return sentences
@@ -381,7 +416,6 @@ def all_words_recursive(elements, filetype='all'):
 # .............................................................................
 
 # Code from https://github.com/japerk/nltk3-cookbook/blob/master/replacers.py
-# 
 
 class RegexpReplacer(object):
     """ Replaces regular expression in a text.
@@ -399,6 +433,40 @@ class RegexpReplacer(object):
         for (pattern, repl) in self.patterns:
             s = re.sub(pattern, repl, s)
         return s
+
+# Word-testing function and associated regexp's.
+
+_letter_regexp        = re.compile(r'[a-zA-Z]')
+_nonletter_regexp     = re.compile(r"[^-'a-zA-Z]")
+_repeated_char_regexp = re.compile(r'(.)\1{4,}')
+_repeated_seq_regexp  = re.compile(r'(.)\1{2,}(.)\2{2,}')
+_dna_regexp           = re.compile(r'[atgc]{6,}', re.I)
+_rna_regexp           = re.compile(r'[augc]{6,}', re.I)
+_imb_regexp           = re.compile(r'[adft]{31,}', re.I)
+_alphabet_regexp      = re.compile(r'abcdefghijklmno', re.I)
+
+def is_word(token):
+    # Returns true if 'token' is plausibly a word.
+    return (token
+            and len(token) <= _max_word_length
+            # Must have at least one letter.
+            and re.search(_letter_regexp, token)
+            # Ignore tokens that have un-text-like characters in them.
+            and not re.search(_nonletter_regexp, token)
+            # Ignore tokens containing strings of 5 or more repeated chars.
+            # (Has to be 5 because roman numerals can have 4 I's or M's.)
+            and not re.search(_repeated_char_regexp, token)
+            # Ignore things that look like DNA or RNA sequences (!).
+            # This is kind of conservative to avoid catching other things.
+            # E.g.: "baggage", "Atacama", "attachment", "datatable".
+            and not re.search(_dna_regexp, token)
+            and not re.search(_rna_regexp, token)
+            # Ignore USPS Intelligent Mail Barcode (IMb) barcodes.
+            and not re.search(_imb_regexp, token)
+            # Ignore what looks like the alphabet.
+            and not re.search(_alphabet_regexp, token)
+            # Ignore repeating shit like "aaabbb".
+            and not re.search(_repeated_seq_regexp, token))
 
 
 # Utility functions.
