@@ -145,7 +145,7 @@ _common_ignored_regexp      = re.compile(_common_ignored, re.IGNORECASE)
 _divider_line_regexp        = re.compile(r'^\W*[-=_.+^*#~]{2,}\W*$', flags=re.MULTILINE)
 _multiple_blank_line_regexp = re.compile(r'\n[ \t]*\n\n+')
 _two_newlines_regexp        = re.compile(r'(?<!\n)\n(?=[^\n])', flags=re.MULTILINE)
-_multiple_spaces_regexp     = re.compile(r'\S+')
+_multiple_spaces_regexp     = re.compile(r'\s+')
 
 _rst_tags                   = r'(:param|:return|:type|:rtype)'
 _rst_tags_regexp            = re.compile(_rst_tags, flags=re.IGNORECASE)
