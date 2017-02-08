@@ -255,6 +255,10 @@ def is_word(token):
             # E.g.: "baggage", "Atacama", "attachment", "datatable".
             and not re.search(r'[atgc]{6,}', token, re.I)
             and not re.search(r'[augc]{6,}', token, re.I)
+            # Ignore USPS Intelligent Mail Barcode (IMb) barcodes.
+            and not re.search(r'[adft]{31,}', token, re.I)
+            # Ignore what looks like the alphabet.
+            and not re.search(r'abcdefghijklmno', token, re.I)
             # Ignore repeating shit like "aaabbb".
             and not re.search(r'(.)\1{2,}(.)\2{2,}', token))
 
