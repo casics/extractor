@@ -474,6 +474,11 @@ def convert_python2_file(filename):
             working_file.close()
         return None
 
+
+def clean_plain_text_list(text):
+    text = [clean_plain_text(string) for string in text]
+    return [string for string in text if string]
+
 
 # Main body.
 # .............................................................................
@@ -601,7 +606,7 @@ def file_elements(filename):
     # Store the header and comments, if any.
 
     elements['header']     = clean_plain_text(header)
-    elements['comments']   = [clean_plain_text(c) for c in comments]
+    elements['comments']   = clean_plain_text_list(comments)
 
     # Pass #2: pull out remaining elements separately using the AST.  This is
     # inefficient, because we're iterating over the file a 2nd time, but our
@@ -638,13 +643,13 @@ def file_elements(filename):
     # We are done.  Do final cleanup and count up frequencies of some things.
 
     # Note that docstrings don't get frequencies associated with them.
-    elements['docstrings'] = [clean_plain_text(c) for c in collector.docstrings]
+    elements['docstrings'] = clean_plain_text_list(collector.docstrings)
     # The rest are turned into ('string', frequency) tuples.
     elements['imports']    = countify(collector.imports)
     elements['classes']    = countify(collector.classes)
     elements['functions']  = countify(collector.functions)
     elements['variables']  = countify(collector.variables)
-    elements['strings']    = countify([clean_plain_text(c) for c in collector.strings])
+    elements['strings']    = countify(clean_plain_text_list(collector.strings))
     elements['calls']      = countify(filtered_calls)
 
     cleanup()
