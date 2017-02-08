@@ -663,7 +663,7 @@ def run_file_parser(debug=False, ppr=False, loglevel='debug', *file):
     '''Test file_parser.py.'''
     if len(file) < 1:
         raise SystemExit('Need a file as argument')
-    log = Logger('file_parser', console=True).get_log()
+    log = Logger(os.path.splitext(sys.argv[0])[0], console=True).get_log()
     if debug:
         log.set_level('debug')
     else:

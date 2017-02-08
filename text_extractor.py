@@ -697,7 +697,7 @@ def run_text_extractor(debug=False, ppr=False, loglevel='info',
     '''Test word_extractor.py.'''
     if len(input) < 1:
         raise SystemExit('Need an argument')
-    log = Logger(sys.argv[0], console=True).get_log()
+    log = Logger(os.path.splitext(sys.argv[0])[0], console=True).get_log()
     if debug:
         log.set_level('debug')
     else:
