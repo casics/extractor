@@ -237,8 +237,8 @@ def dir_elements_recursive(path):
                 log.debug('ignorable file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
-            elif unhandled_file(file):
-                log.debug('unhandled file: {}'.format(file))
+            elif excessively_large_file(file):
+                log.info('excessively large text file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
             elif python_file(file):
@@ -247,15 +247,14 @@ def dir_elements_recursive(path):
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
-            elif document_file(file) and not excessively_large_file(file):
-                log.debug('text file: {}'.format(file))
+            elif document_file(file):
+                log.debug('document file: {}'.format(file))
                 text = extract_text(file)
-                if text:
-                    lang = human_language(text)
-                    contents.append(file_dict(file, text, None, lang))
-                    continue
+                lang = human_language(text)
+                contents.append(file_dict(file, text, None, lang))
+                continue
             # Fall-back for cases we don't handle.
-            log.warn('unrecognized file: {}'.format(file))
+            log.warn('unhandled file type: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
             if ignorable_dir(dir):
@@ -358,7 +357,7 @@ def run_dir_parser(debug=False, ppr=False, loglevel='debug', recache=False, *fil
     '''Test dir_parser.py.'''
     if len(file) < 1:
         raise SystemExit('Need a directory as argument')
-    log = Logger('dir_parser').get_log()
+    log = Logger(os.path.splitext(sys.argv[0])[0], console=True).get_log()
     if debug:
         log.set_level('debug')
     else:
