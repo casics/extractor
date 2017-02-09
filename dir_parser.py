@@ -229,16 +229,16 @@ def dir_elements_recursive(path):
                 # time we call os.walk and the time we get to processing file.
                 log.warn('non-existent file: {}'.format(file))
                 continue
+            elif excessively_large_file(file):
+                log.debug('skipping large text file: {}'.format(file))
+                contents.append(file_dict(file, None, None, None))
+                continue
             elif empty_file(file):
                 log.debug('skipping empty file: {}'.format(file))
                 contents.append(file_dict(file, '', None, None))
                 continue
             elif ignorable_file(file):
                 log.debug('skipping ignorable file: {}'.format(file))
-                contents.append(file_dict(file, None, None, None))
-                continue
-            elif excessively_large_file(file):
-                log.debug('skipping large text file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
             elif python_file(file):
