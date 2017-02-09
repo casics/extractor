@@ -68,6 +68,7 @@ def extract_text(filename, encoding='utf-8', retried=False):
     try:
         with open(filename, 'r', encoding=encoding, errors='replace') as file:
             if ext in constants.common_puretext_extensions:
+                log.info('Extracting text from pure text file {}'.format(filename))
                 return clean_plain_text(file.read())
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn', '.mdown']:
                 # Testing showed better text output results using markdown
