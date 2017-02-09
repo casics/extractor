@@ -227,34 +227,34 @@ def dir_elements_recursive(path):
             if not os.path.exists(file):
                 # Can happen if something creates a temporary file in-between
                 # time we call os.walk and the time we get to processing file.
-                log.debug('file does not exist: {}'.format(file))
+                log.warn('non-existent file: {}'.format(file))
                 continue
             elif empty_file(file):
-                log.debug('empty file: {}'.format(file))
+                log.debug('skipping empty file: {}'.format(file))
                 contents.append(file_dict(file, '', None, None))
                 continue
             elif ignorable_file(file):
-                log.debug('ignorable file: {}'.format(file))
+                log.debug('skipping ignorable file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
             elif excessively_large_file(file):
-                log.info('excessively large text file: {}'.format(file))
+                log.debug('skipping large text file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
             elif python_file(file):
-                log.debug('Python file: {}'.format(file))
+                log.info('parsing Python file: {}'.format(file))
                 elements = file_elements(file)
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
             elif document_file(file):
-                log.debug('document file: {}'.format(file))
+                log.info('parsing document file: {}'.format(file))
                 text = extract_text(file)
                 lang = human_language(text)
                 contents.append(file_dict(file, text, None, lang))
                 continue
             # Fall-back for cases we don't handle.
-            log.warn('unhandled file type: {}'.format(file))
+            log.info('unhandled file type: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
         for dir in subdirs:
             if ignorable_dir(dir):
