@@ -458,6 +458,7 @@ _dna_regexp            = re.compile(r'[atgc]{6,}', re.I)
 _rna_regexp            = re.compile(r'[augc]{6,}', re.I)
 _imb_regexp            = re.compile(r'[adft]{31,}', re.I)
 _alphabet_regexp       = re.compile(r'abcdefghijklmno', re.I)
+_random_nonword_regexp = re.compile(r'[bcdfghjklmnpqrstvwxzy]{9,}', re.I)
 
 def is_word(token):
     # Returns true if 'token' is plausibly a word.
@@ -482,7 +483,9 @@ def is_word(token):
             # Ignore repeating shit like "aaabbb".
             and not re.search(_repeated_seq_regexp, token)
             and not re.search(_repeated_pat3_regexp, token)
-            and not re.search(_repeated_pat4_regexp, token))
+            and not re.search(_repeated_pat4_regexp, token)
+            # Random sequences
+            and not (re.search(_random_nonword_regexp, token) and len(token) >= 50))
 
 
 # Utility functions.
