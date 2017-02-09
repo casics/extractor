@@ -452,6 +452,8 @@ _letter_regexp         = re.compile(r'[a-zA-Z]')
 _nonword_letter_regexp = re.compile(r"[^-'_.a-zA-Z]")
 _repeated_char_regexp  = re.compile(r'(.)\1{4,}')
 _repeated_seq_regexp   = re.compile(r'(.)\1{2,}(.)\2{2,}')
+_repeated_pat3_regexp  = re.compile(r'(.)(.)(.)\1\2\3\1\2\3')
+_repeated_pat4_regexp  = re.compile(r'(.)(.)(.)(.)\1\2\3\4\1\2\3\4')
 _dna_regexp            = re.compile(r'[atgc]{6,}', re.I)
 _rna_regexp            = re.compile(r'[augc]{6,}', re.I)
 _imb_regexp            = re.compile(r'[adft]{31,}', re.I)
@@ -478,7 +480,9 @@ def is_word(token):
             # Ignore what looks like the alphabet.
             and not re.search(_alphabet_regexp, token)
             # Ignore repeating shit like "aaabbb".
-            and not re.search(_repeated_seq_regexp, token))
+            and not re.search(_repeated_seq_regexp, token)
+            and not re.search(_repeated_pat3_regexp, token)
+            and not re.search(_repeated_pat4_regexp, token))
 
 
 # Utility functions.
