@@ -93,6 +93,7 @@ common_ignorable_files = [
     '.gitconfig',
     '.gitignore',
     '.gitmodules',
+    '.vim',
 ]
 
 common_ignorable_dirs = [
