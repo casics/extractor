@@ -84,6 +84,7 @@ common_ignorable_files = [
     '*.pyc',
     '*.svn-base',
     '*.class',
+    '*.vim',
     '.#*',
     '.*.swp',
     '.config',
@@ -93,7 +94,7 @@ common_ignorable_files = [
     '.gitconfig',
     '.gitignore',
     '.gitmodules',
-    '.vim',
+    '.vimrc',
 ]
 
 common_ignorable_dirs = [
