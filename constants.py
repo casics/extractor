@@ -106,6 +106,7 @@ common_ignorable_files = [
 common_ignorable_dirs = [
     '.git',
     '.svn',
+    'CVS',
 ]
 
 common_unhandled_files = [
