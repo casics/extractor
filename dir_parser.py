@@ -250,6 +250,10 @@ def dir_elements_recursive(path):
                 log.debug('skipping currently unhandled code file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None))
                 continue
+            elif is_noncode_file(file):
+                log.debug('skipping currently unhandled noncode file: {}'.format(file))
+                contents.append(file_dict(file, None, None, None))
+                continue
             elif document_file(file):
                 text = extract_text(file)
                 lang = human_language(text)
