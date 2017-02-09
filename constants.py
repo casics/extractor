@@ -94,6 +94,12 @@ common_ignorable_files = [
     '.gitconfig',
     '.gitignore',
     '.gitmodules',
+    '.jsdtscope',
+    '.lock',
+    '.patch',
+    '.sublime-keymap',
+    '.sublime-settings',
+    '.tmtheme',
     '.vimrc',
 ]
 
@@ -103,8 +109,16 @@ common_ignorable_dirs = [
 ]
 
 common_unhandled_files = [
+    '*.gradle',
+    '.classpath',
+    '.cproject',
+    '.gtd',
+    '.project',
+    '.vcproj',
+    '.vcxproj',
     'build.xml',
     'capfile',
+    'CMakeLists.txt',
     'gemfile',
     'makefile',
     'pom',
