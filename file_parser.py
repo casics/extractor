@@ -518,7 +518,7 @@ def file_elements(filename):
     # Open the file for reading.  FileIO is needed for the Python 'ast' module.
 
     log = Logger('file_parser').get_log()
-    log.debug('opening Python file {}'.format(full_path))
+    log.info('parsing Python file {}'.format(full_path))
     stream = io.FileIO(filename)
 
     # Pass #0: account for Python 2 vs 3 syntax.

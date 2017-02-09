@@ -72,39 +72,39 @@ def extract_text(filename, encoding='utf-8', retried=False):
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn', '.mdown']:
                 # Testing showed better text output results using markdown
                 # module than using pypandoc.  Don't know why, don't care.
-                log.debug('Extracting text from markdown file {}'.format(filename))
+                log.info('Extracting text from markdown file {}'.format(filename))
                 html = markdown.markdown(file.read(), output_format='html4')
                 return convert_html(html)
             elif ext.startswith('.htm'):
-                log.debug('Extracting text from HTML file {}'.format(filename))
+                log.info('Extracting text from HTML file {}'.format(filename))
                 return convert_html(file.read())
             elif ext in ['.asciidoc', '.adoc', '.asc']:
-                log.debug('Extracting text from AsciiDoc file {}'.format(filename))
+                log.info('Extracting text from AsciiDoc file {}'.format(filename))
                 html = html_from_asciidoc_file(filename)
                 return convert_html(html)
             elif ext in ['.rst']:
-                log.debug('Extracting text from rST file {}'.format(filename))
+                log.info('Extracting text from rST file {}'.format(filename))
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
             elif ext in ['.rtf']:
-                log.debug('Extracting text from RTF file {}'.format(filename))
+                log.info('Extracting text from RTF file {}'.format(filename))
                 html = html_from_rtf_file(filename)
                 return convert_html(html)
             elif ext in ['.textile']:
-                log.debug('Extracting text from Textile file {}'.format(filename))
+                log.info('Extracting text from Textile file {}'.format(filename))
                 html = textile.textile(file.read())
                 return convert_html(html)
             elif ext in ['.tex']:
-                log.debug('Extracting text from LaTeX/TeX file {}'.format(filename))
+                log.info('Extracting text from LaTeX/TeX file {}'.format(filename))
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
             elif ext in ['.docx', '.odt']:
-                log.debug('Extracting text from office {} file {}'
+                log.info('Extracting text from office {} file {}'
                           .format(ext, filename))
                 html = pypandoc.convert_file(filename, to='html')
                 return convert_html(html)
             elif ext in ['.texi', '.texinfo']:
-                log.debug('Extracting text from TeXinfo file {}'.format(filename))
+                log.info('Extracting text from TeXinfo file {}'.format(filename))
                 html = html_from_texinfo_file(filename)
                 return convert_html(html)
             # Turns out pypandoc can't handle .org files, though Pandoc can.
@@ -113,7 +113,7 @@ def extract_text(filename, encoding='utf-8', retried=False):
             #     html = pypandoc.convert_file(filename, to='html')
             #     return convert_html(html)
             elif ext[1:].isdigit():
-                log.debug('Extracting text from *roff file {}'.format(filename))
+                log.info('Extracting text from *roff file {}'.format(filename))
                 html = html_from_roff_file(filename)
                 return convert_html(html)
             else:

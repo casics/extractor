@@ -214,7 +214,7 @@ def dir_elements_recursive(path):
     # Recursive directory walker.
     full_path = os.path.join(os.getcwd(), path)
     log = Logger().get_log()
-    log.debug('beginning traversal of {}'.format(full_path))
+    log.info('beginning traversal of {}'.format(full_path))
     walker = os.walk(path)
 
     # First entry is the current directory, so skip it.
@@ -242,13 +242,11 @@ def dir_elements_recursive(path):
                 contents.append(file_dict(file, None, None, None))
                 continue
             elif python_file(file):
-                log.info('parsing Python file: {}'.format(file))
                 elements = file_elements(file)
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
             elif document_file(file):
-                log.info('parsing document file: {}'.format(file))
                 text = extract_text(file)
                 lang = human_language(text)
                 contents.append(file_dict(file, text, None, lang))
@@ -262,7 +260,7 @@ def dir_elements_recursive(path):
             else:
                 contents.append(dir_elements_recursive(dir))
 
-    log.debug('finished traversal of {}'.format(full_path))
+    log.info('finished traversal of {}'.format(full_path))
     return {'name': path, 'type': 'dir', 'body': contents}
 
 
