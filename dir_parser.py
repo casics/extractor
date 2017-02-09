@@ -287,7 +287,10 @@ def ignorable_dir(dirname):
 
 
 def unhandled_file(filename):
-    return filename.lower() in constants.common_unhandled_files
+    # Need to lower-case the name in this case, because files like makefiles
+    # often vary in case.
+    name = filename.lower()
+    return any(fnmatch(name, pat) for pat in constants.common_unhandled_files)
 
 
 def python_file(filename):
