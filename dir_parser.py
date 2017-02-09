@@ -246,11 +246,16 @@ def dir_elements_recursive(path):
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
+            elif is_code_file(file):
+                log.debug('skipping currently unhandled code file: {}'.format(file))
+                contents.append(file_dict(file, None, None, None))
+                continue
             elif document_file(file):
                 text = extract_text(file)
                 lang = human_language(text)
                 contents.append(file_dict(file, text, None, lang))
                 continue
+
             # Fall-back for cases we don't handle.
             log.info('unhandled file type: {}'.format(file))
             contents.append(file_dict(file, None, None, None))
