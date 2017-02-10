@@ -200,7 +200,7 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
     extractor.get_status()
     extractor.get_repo_path(id)
     extractor.get_elements(id)
-    extractor.get_words(id, filetype)
+    extractor.get_words(id, filetype='all', recache=False)
 '''
 
         IPython.embed(banner1=banner)

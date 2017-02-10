@@ -35,7 +35,8 @@ from text_extractor import *
 from extractor import Extractor
 
 
-def word_frequencies_for_repos(repo_ids, lang, uri, key, lowercase=False):
+def word_frequencies_for_repos(repo_ids, lang, uri, key,
+                               lowercase=False, recache=False):
     from nltk.probability import FreqDist
     log = Logger().get_log()
     extractor = Extractor(uri, key)
@@ -45,7 +46,7 @@ def word_frequencies_for_repos(repo_ids, lang, uri, key, lowercase=False):
             log.info('Ignoring blank line')
             continue
         log.info('Getting words for {}'.format(id))
-        words = words + extractor.get_words(id)
+        words = words + extractor.get_words(id, recache=recache)
     if lowercase == 'all':
         log.info('Lower-casing all words.')
         words = [w.lower() for w in words]
@@ -60,7 +61,7 @@ def word_frequencies_for_repos(repo_ids, lang, uri, key, lowercase=False):
 # Argument annotations are: (help, kind, abbrev, type, choices, metavar)
 # Plac automatically adds a -h argument for help, so no need to do it here.
 
-def run(key=None, uri=None, *file):
+def run(key=None, uri=None, recache=False, *file):
     '''Test gather_word_stats.py.'''
     if len(file) < 1:
         raise SystemExit('Need a file as argument')
@@ -76,13 +77,14 @@ def run(key=None, uri=None, *file):
         id_list = f.read().splitlines()
 
     log.info('Running word_statistics')
-    freq = word_frequencies_for_repos(id_list, 'Python', uri, key)
+    freq = word_frequencies_for_repos(id_list, 'Python', uri, key, recache=recache)
     print(tabulate_frequencies(freq))
 
 run.__annotations__ = dict(
-    uri   = ('URI to connect to', 'option', 'u'),
-    key   = ('crypto key',        'option', 'k'),
-    file  = 'file of repo identifiers',
+    uri     = ('URI to connect to',    'option', 'u'),
+    key     = ('crypto key',           'option', 'k'),
+    recache = ('invalidate the cache', 'flag',   'r'),
+    file    = 'file of repo identifiers',
 )
 
 if __name__ == '__main__':
