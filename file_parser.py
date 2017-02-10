@@ -35,6 +35,11 @@ from logger import *
 # Global configuration constants.
 # .............................................................................
 
+# The use of recursive AST visitor methods sometimes trips hits default
+# recursion depth limit, e.g., when a file contains a long list of strings.
+
+sys.setrecursionlimit(3000)
+
 # Lot of things just don't look very interesting if they're too short.
 # The next set of constants sets some thresholds.
 _min_name_len = 3
