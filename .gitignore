@@ -2,3 +2,4 @@ CURRENT_URI.txt
 __pycache__
 .cache/
 README.html
+*.casics_cache
