@@ -1,0 +1,550 @@
+// ----------------------------------------------------------------------------
+__construct
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    void __construct(string $l, PDOAIT $pdo)
+
+Description
++++++++++++
+
+Constructeur
+
+Paramètres
+++++++++++
+
+string *$label*:: Label du type d'item 
+PDOAIT *$pdo*:: Instance de base AIT que l'on souhaite utiliser. 
+
+
+// ----------------------------------------------------------------------------
+defTagType
+^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_TagType defTagType(string $l)
+
+Description
++++++++++++
+
+Retourne un type de tag associé au type d'item courant. 
+Si le Tag n'existe pas il est automatiquement créé.
+
+
+Paramètres
+++++++++++
+
+string *$l*:: label
+
+
+Retour
+++++++
+
+Un objet AIT_TagType représentant le type de tag
+
+
+// ----------------------------------------------------------------------------
+addTagType
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_TagType addTagType(string $l)
+
+Description
++++++++++++
+
+Ajout d'un type de tag au type d'item courant
+
+Paramètres
+++++++++++
+
+string *$l*:: label
+
+
+Retour
+++++++
+
+Un objet AIT_TagType représentant le nouveau type de tag
+
+// ----------------------------------------------------------------------------
+getTagType
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_TagType getTagType(string $l)
+
+Description
++++++++++++
+
+Retourne un type de tag du type d'item courant en fonction de son label.
+
+Paramètres
+++++++++++
+
+string *$l*:: Le label.
+
+
+Retour
+++++++
+
+Un objet AIT_TagType représentant le type de tag trouvé ou NULL si il n'existe pas.
+
+
+// ----------------------------------------------------------------------------
+newItem
+^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Item newItem()
+
+Description
++++++++++++
+
+Crée un item. Son label est calculé automatiquement en fonction de l'identifiant système.
+
+Paramètres
+++++++++++
+
+Aucun.
+
+Retour
+++++++
+
+Un objet AIT_Item représentant le nouvel item.
+
+// ----------------------------------------------------------------------------
+addItem
+^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Item addItem(string $l)
+
+Description
++++++++++++
+
+Ajout d'un item au type d'item courant
+
+Paramètres
+++++++++++
+
+string *$l*:: nom du nouveau item
+
+
+Retour
+++++++
+
+Un objet AIT_Item représentant le nouvel item.
+
+// ----------------------------------------------------------------------------
+getItem
+^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Item getItem(string $l)
+
+Description
++++++++++++
+
+Récupère un item
+
+Paramètres
+++++++++++
+
+string *$l*:: nom de l'item
+
+
+Retour
+++++++
+
+Un objet AIT_Item représentant l'item trouvé.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-getItem.php[]
+-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+defItem
+^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Item defItem(string $l)
+
+Description
++++++++++++
+
+Retourne un item associé au type d'item courant. 
+Si l'item n'existe pas il est automatiquement créé.
+
+
+Paramètres
+++++++++++
+
+string *$l*:: nom de l'item
+
+
+Retour
+++++++
+
+Un objet AIT_Item représentant l'item trouvé.
+
+
+// ----------------------------------------------------------------------------
+getItems
+^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult getItems(integer $offset=null, integer $lines=null, integer $ordering=null, array $cols=[])
+
+Description
++++++++++++
+
+Retourne tous les items du type d'item courant
+
+Paramètres
+++++++++++
+
+integer *$offset*:: décalage à partir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Item.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-getItems.php[]
+-------------------------------------------------
+
+// ----------------------------------------------------------------------------
+fetchItems
+^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult fetchItems(ArrayObject $tags, integer $offset=null, integer $lines=null, integer $ordering=null,  array $cols=[])
+
+Description
++++++++++++
+
+Retourne les items possédant un ou plusieurs tags donnés en paramètres
+
+Paramètres
+++++++++++
+
+ArrayObject *$tags*:: Tableau de tag 
+integer *$offset*:: décalage à partir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Item.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-fetchItems.php[]
+-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+getTagTypes
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult getTagTypes(integer $offset=null, integer $lines=null, integer $ordering=null, array $cols=[])
+
+Description
++++++++++++
+
+Retourne tous les types de tags de l'item courant
+
+Paramètres
+++++++++++
+
+integer *$offset*:: décalage à parir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_TagType.
+
+// ----------------------------------------------------------------------------
+selectItems
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult selectItems(mixed $query, integer $offset = null, integer $lines = null, integer $ordering = null, array $cols = [])
+
+Description
++++++++++++
+
+Sélectionne des items du type courant à partir des items eux-même
+
+
+Paramètres
+++++++++++
+
+string *$query*:: requete (le format peut varier en fonction de la callback) sans callback c'est une chaine de caractères contenant du SQL 
+integer *$offset*:: décalage à partir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Item.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-selectItems.php[]
+-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+searchItems
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult searchItems(mixed $query, integer $offset=null, integer $lines=null, integer $ordering=null, array $cols=[])
+
+Description
++++++++++++
+
+Recherche des items du type courant à partir des tags
+Important : Ne sont ramenés que des items possédant des tags.
+
+Paramètres
+++++++++++
+
+string *$query*:: requete (le format peut varier en fonction de la callback) sans callback c'est une chaine de caractères contenant du SQL 
+integer *$offset*:: décalage à partir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Item.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-searchItems.php[]
+-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+getItemBySystemID
+^^^^^^^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Item getItemBySystemID(integer $i)
+
+Description
++++++++++++
+
+Récupère un Item en fonction de son identifiant système
+
+Paramètres
+++++++++++
+
+integer *$i*:: un identifiant système
+
+
+Retour
+++++++
+
+Un objet AIT_Item représentant l'item trouvé.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-getItemBySystemID.php[]
+-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+queryItems
+^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_ItemType::queryItems(AITQuery $query, integer $offset=null, integer $lines=null, integer $ordering=null, array $cols=[])
+
+Description
++++++++++++
+
+On recherche des items associés au TYPE d'ITEM courant à partir d'un objet AITQuery
+
+Paramètres
+++++++++++
+
+AITQuery*$l*:: $query objet contenant la requête d'interrogation.
+integer *$offset*:: décalage à partir du premier enregistrement.
+integer *$lines*:: nombre de lignes à retourner.
+integer *$ordering*:: flag permettant le tri.
+array *$cols*:: filtre sur les champs complémentaires
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Item.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-queryItems.php[]
+-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+countItems
+^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_ItemType::countItems()
+
+Description
++++++++++++
+
+Retourne le nombre total d'items attachés au type d'item courrant.
+
+Paramètres
+++++++++++
+
+Aucun.
+
+Retour
+++++++
+
+un nombre entier représentant le nombre d'enregistrement.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_ItemType-countItems.php[]
+-------------------------------------------------
+
+// ----------------------------------------------------------------------------
+countTagTypes
+^^^^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_ItemType::countTags()
+
+Description
++++++++++++
+
+Retourne le nombre total de tags attachés au type d'item courrant.
+
+Paramètres
+++++++++++
+
+Aucun.
+
+Retour
+++++++
+
+un nombre entier représentant le nombre d'enregistrement.
+
+
+// ----------------------------------------------------------------------------
+del
+^^^
+
+Synopsis
+++++++++
+
+    void del()
+
+Description
++++++++++++
+
+Suppression de l'élément des tags et des items qui lui sont associés. 
+
+
+Paramètres
+++++++++++
+
+Aucun.
+
+Retour
+++++++
+
+NULL.
+
+
+
+include::../AIT.txt[]
+// vim: set syntax=asciidoc encoding=utf8 spl=fr: 
+

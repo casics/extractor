@@ -1,0 +1,143 @@
+Pyramid TODOs
+=============
+
+Must-Have
+---------
+
+- Fix deployment recipes in cookbook (discourage proxying without changing
+  server).
+
+- Use waitress instead of wsgiref.
+
+- pyramid.config.util.ActionInfo.__str__ potentially returns Unicode under
+  Py2, fix.
+
+- Tests for view names/route patterns that contain Unicode.
+
+Nice-to-Have
+------------
+
+- Modify the urldispatch chapter examples to assume a scan rather than
+  ``add_view``.
+
+- Decorator for append_slash_notfound_view_factory?
+
+- Introspection:
+
+  * ``default root factory`` category?
+
+  * ``default view mapper`` category?
+
+  * get rid of "tweens" category (can't sort properly?)
+
+  * implement ptweens and proutes based on introspection instead of current
+    state of affairs.
+
+  * introspection hiding for directives?
+
+- Fix deployment recipes in cookbook (discourage proxying without changing
+  server).
+
+Nice-to-Have
+------------
+
+- CherryPy server testing / exploded from CherryPy itself.
+
+- Try "with transaction.manager" in an exception view with SQLA (preempt
+  homina homina response about how to write "to the database" from within in
+  an exception view).
+
+- Add a default-view-config-params decorator that can be applied to a class
+  which names defaults for method-based view_config decorator options.
+
+- Add narrative docs for wsgiapp and wsgiapp2.
+
+- Flesh out "Paste" narrative docs chapter.
+
+- Basic WSGI documentation (pipeline / app / server).
+
+- Change docs about creating a venusian decorator to not use ZCA.
+
+- Try to better explain the relationship between a renderer and a template in
+  the templates chapter and elsewhere.  Scan the documentation for reference
+  to a renderer as *only* view configuration (it's a larger concept now).
+
+- Add better docs about what-to-do-when-behind-a-proxy: paste.urlmap ("/foo =
+  app1" and "domain app1.localhost = app1"), ProxyPreserveHost and the nginx
+  equivalent, preserving HTTPS URLs.
+
+- _fix_registry should dictify the registry being fixed.
+
+- Make "localizer" a property of request (instead of requiring
+  "get_localizer(request)"?
+
+- Alias the stupid long default session factory name.
+
+- Debug option to print view matching decision (e.g. debug_viewlookup or so).
+
+- Non-bwcompat use of threadlocals that need to be documented or ameliorated:
+
+  security.principals_allowed_by_permission
+
+  resource.OverrideProvider._get_overrides: can't credibly be removed,
+  because it stores an overrideprovider as a module-scope global.
+
+  traversal.traverse: this API is a stepchild, and needs to be changed.
+
+  Configurator.add_translation_dirs: not passed any context but a message,
+  can't credibly be removed.
+
+- Deprecate pyramid.security.view_execution_permitted (it only works for
+  traversal).
+
+- Create a function which performs a recursive request.
+
+- Create a ``render_view`` that works by using config.derive_view against an
+  existing view callable instead of querying the registry (some sort of API
+  for rendering a view callable object to a response from within another view
+  callable). Possible idea: have config.add_view mark up the
+  function/method/class like @view_config does, then use the attached info to
+  derive a view callable whenever called via some API.
+
+- Provide a ``has_view`` function.
+
+- Update App engine chapter with less creaky directions.
+
+Future
+------
+
+- 1.4: Kill off ``bfg.routes`` envvars in router.
+
+- 1.4: Remove ``chameleon_text`` / ``chameleon_zpt`` deprecated functions
+  (render_*)
+
+- 1.4: Remove ``pyramid.configuration.ConfigurationError`` (deprecated).
+
+- 1.4: Remove ``pyramid.paster.PyramidTemplate`` (deprecated).
+
+- 1.4: Remove ``pyramid.settings.get_settings`` (deprecated).
+
+- 1.5: Remove all deprecated ``pyramid.testing`` functions.
+
+- 1.5: turn ``pyramid.settings.Settings`` into a function that returns the
+  original dict (after ``__getattr__`` deprecation period, it was deprecated
+  in 1.2).
+
+- 1.5: Remove ``pyramid.requests.DeprecatedRequestMethodsMixin``.
+
+Probably Bad Ideas
+------------------
+
+- Add functionality that mocks the behavior of ``repoze.browserid``.
+
+- Consider implementing the API outlined in
+  http://plope.com/pyramid_auth_design_api_postmortem, phasing out the
+  current auth-n-auth abstractions in a backwards compatible way.
+
+- Maybe add ``add_renderer_globals`` method to Configurator.
+
+- Supply ``X-Vhm-Host`` support (probably better to do what paste#prefix
+  middleware does).
+
+- Have ``remember`` and ``forget`` actually set headers on the response using
+  a response callback (and return the empty list)?
