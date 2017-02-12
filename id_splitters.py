@@ -66,29 +66,20 @@ def delimiter_split(identifier):
     return parts
 
 
-# Naive camel case splitter
+# Safe camel case splitter
 # .............................................................................
 
-def naive_camelcase_split(identifier):
-    '''Split identifiers by forward camel case only, i.e., lower-to-upper case
-    transitions.  This means it will split fooBarBaz into 'foo', 'Bar' and
-    'Baz', but it won't change SQLlite or similar identifiers.'''
-    return re.sub(r'((?<=[a-z])[A-Z])', r' \1', identifier).split()
-
-
-_two_capitals = '[A-Z][A-Z]'
-_two_capitals_compiled = re.compile(_two_capitals)
-_camel_case = r'((?<=[a-z])[A-Z])'
-_camel_case_compiled = re.compile(_camel_case)
+_two_capitals = re.compile(r'[A-Z][A-Z]')
+_camel_case   = re.compile(r'((?<=[a-z])[A-Z])')
 
 def safe_camelcase_split(identifier):
     '''Split identifiers by forward camel case only, i.e., lower-to-upper case
     transitions.  This means it will split fooBarBaz into 'foo', 'Bar' and
     'Baz', but it won't change SQLlite or similar identifiers.  Does not
     split identifies that have multiple adjacent uppercase letters.'''
-    if re.search(_two_capitals_compiled, identifier):
+    if re.search(_two_capitals, identifier):
         return [identifier]
-    return re.sub(_camel_case_compiled, r' \1', identifier).split()
+    return re.sub(_camel_case, r' \1', identifier).split()
 
 
 # Quick testing.
