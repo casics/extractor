@@ -44,6 +44,7 @@ sys.path.append('../database')
 sys.path.append('../detector')
 sys.path.append('../cataloguer')
 sys.path.append('../common')
+sys.path.append('../splitters')
 
 from utils import *
 
@@ -52,7 +53,7 @@ from   content_inferencer import *
 from   human_language import *
 from   logger import *
 from   dir_parser import *
-from   id_splitters import *
+from   simple_splitters import *
 
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
