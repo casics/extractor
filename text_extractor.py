@@ -54,6 +54,7 @@ from   human_language import *
 from   logger import *
 from   dir_parser import *
 from   simple_splitters import *
+from   samurai import samurai_split
 
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
@@ -155,8 +156,8 @@ _rst_tags              = re.compile(_rst_tags_regexp, flags=re.IGNORECASE)
 # Common punctuation that doesn't get a period after it.
 # Note the next line is filled with special non-ascii characters.
 # Some of these look like they have spaces in them, but they don't!
-_okay_ending_chars = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
-                       '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
+_okay_ending_chars     = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
+                          '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
 _okay_endings = re.compile(r'([^'+''.join(_okay_ending_chars)+r'])([ \t]*)\n\n',
                            flags=re.MULTILINE)
 
@@ -397,20 +398,21 @@ def all_words_recursive(elements, filetype='all'):
 
     words = []
     if elements['type'] == 'file':
-        if ignorable_filename(elements['name']):
-            log.debug('Skipping ignorable file: {}'.format(elements['name']))
+        name = elements['name']
+        if ignorable_filename(name):
+            log.debug('Skipping ignorable file: {}'.format(name))
             return []
         elif elements['body'] != None and len(elements['body']) == 0:
-            log.debug('Skipping empty file: {}'.format(elements['name']))
+            log.debug('Skipping empty file: {}'.format(name))
             return []
         elif not elements['text_language']:
-            log.debug('Skipping unhandled file type: {}'.format(elements['name']))
+            log.debug('Skipping unhandled file type: {}'.format(name))
             return []
         elif elements['text_language'] not in ['en', 'unknown']:
-            log.info('Skipping non-English file {}'.format(elements['name']))
+            log.info('Skipping non-English file {}'.format(name))
             return []
         elif elements['body'] == None:
-            log.warn('Unexpected empty body for {}'.format(elements['name']))
+            log.warn('Unexpected empty body for {}'.format(name))
             return []
 
         if filetype in ['text', 'all'] and not elements['code_language']:
@@ -422,6 +424,81 @@ def all_words_recursive(elements, filetype='all'):
             words = words + all_words_recursive(item, filetype=filetype)
     words = [w for w in words if w]
     return words
+
+
+def all_identifiers(wrapper, recache=False, splitter=samurai_split):
+    '''Take a recursive directory/file elements dictionary and return all
+    identifiers (class names, variable names, function names, function calls,
+    imported module names) along with the number of occurrences of each.  The
+    value returned by this function is a list of tuples of the form:
+       (['part1', 'part2', ...], N)
+    where N is the frequency.  Identifiers are split into parts using the
+    function given as argument 'splitter'.  The parts of the split are saved
+    as a list, so the first part of the tuple is ['part1', 'part2', ...].
+    This returns cached results if any exist and the argument 'recache'
+    is not True.
+    '''
+
+    log = Logger().get_log()
+    if 'full_path' not in wrapper:
+        log.debug('Missing "full_path" key in dictionary')
+        return None
+
+    full_path = wrapper['full_path']
+    cached_ids = cached_value(full_path, 'all_identifiers')
+    if cached_ids:
+        if recache:
+            log.debug('ignoring cached all_identifiers for {}'.format(full_path))
+        else:
+            log.debug('returning cached all_identifiers for {}'.format(full_path))
+            return cached_ids
+    else:
+        log.debug('no cached all_identifiers found for {}'.format(full_path))
+
+    elements = wrapper['elements']
+    words = all_identifiers_recursive(elements, splitter=splitter)
+
+    log.debug('caching all_identifiers for {}'.format(full_path))
+    save_cached_value(full_path, 'all_identifiers', words)
+
+    return words
+
+
+def all_identifiers_recursive(elements, splitter):
+    log = Logger().get_log()
+
+    if not elements:
+        log.warn('Empty elements -- no words returned')
+        return []
+    elif 'body' not in elements:
+        log.warn('Missing "body" key in elements dictionary -- skipping')
+        return []
+
+    identifiers = []
+    if elements['type'] == 'file':
+        name = elements['name']
+        if ignorable_filename(name):
+            log.debug('Skipping ignorable file: {}'.format(name))
+            return []
+        elif elements['body'] != None and len(elements['body']) == 0:
+            log.debug('Skipping empty file: {}'.format(name))
+            return []
+        elif not elements['code_language']:
+            log.debug('Skipping unhandled file type: {}'.format(name))
+            return []
+        elif elements['code_language'] not in ['Python']:
+            log.debug('Skipping non-Python file type: {}'.format(name))
+            return []
+        elif elements['body'] == None:
+            log.warn('Unexpected empty body for {}'.format(name))
+            return []
+        identifiers = identifiers + extract_code_identifiers(elements['body'],
+                                                             splitter=splitter)
+    else:
+        for item in elements['body']:
+            identifiers = identifiers + all_identifiers_recursive(item, splitter)
+    identifiers = [x for x in identifiers if x]
+    return identifiers
 
 
 # Utility classes.
@@ -530,6 +607,14 @@ def extract_code_words(body):
     return words
 
 
+def extract_code_identifiers(body, splitter):
+    ids = []
+    for element in ['classes', 'imports', 'variables', 'functions', 'calls']:
+        for id, count in body[element]:
+            ids.append((splitter(id), count))
+    return ids
+
+
 def output_from_external_converter(cmd):
     log = Logger().get_log()
     log.debug(' '.join(cmd))
@@ -624,12 +709,12 @@ def convert_html(html):
     for htype in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
         # Add periods at the ends of headings (to make them look like sentences)
         for el in soup.find_all(htype):
-            if not el.text.rstrip().endswith(_okay_endings):
+            if not el.text.rstrip().endswith(_okay_ending_chars):
                 el.append('.')
 
     for el in soup.find_all('p'):
         # Add periods at the ends of paragraphs if necessary.
-        if not el.text.rstrip().endswith(_okay_endings):
+        if not el.text.rstrip().endswith(_okay_ending_chars):
             el.append('.')
 
     for list_type in ['ul', 'ol']:
@@ -641,7 +726,7 @@ def convert_html(html):
             for i, li in enumerate(list_elements, start=1):
                 # Add commas after list elements if they have no other
                 # punctuation, and add a period after the last element.
-                if li.string and not li.string.rstrip().endswith(_okay_endings):
+                if li.string and not li.string.rstrip().endswith(_okay_ending_chars):
                     if i == last:
                         li.append('.')
                     else:
@@ -649,15 +734,15 @@ def convert_html(html):
 
     for el in soup.find_all('dl'):
         for d in soup.find_all('dt'):
-            if d.string and not d.string.rstrip().endswith(_okay_endings):
+            if d.string and not d.string.rstrip().endswith(_okay_ending_chars):
                 d.append(':')
         for d in soup.find_all('dd'):
-            if d.string and not d.string.rstrip().endswith(_okay_endings):
+            if d.string and not d.string.rstrip().endswith(_okay_ending_chars):
                 d.append('.')
 
     for table_element in ['th', 'td']:
         for el in soup.find_all(table_element):
-            if el.string and not el.string.rstrip().endswith(_okay_endings):
+            if el.string and not el.string.rstrip().endswith(_okay_ending_chars):
                 # This one adds a space afterwards, because for some reason
                 # BS doesn't put spaces after these elements when you do the
                 # find_all(text=True) at the end.
@@ -706,21 +791,20 @@ def run_text_extractor(debug=False, ppr=False, loglevel='info',
     if len(input) < 1:
         raise SystemExit('Need an argument')
     log = Logger(os.path.splitext(sys.argv[0])[0], console=True).get_log()
-    if debug:
-        log.set_level('debug')
-    else:
-        log.set_level(loglevel)
+    log.set_level(loglevel)
     target = input[0]
     if not os.path.exists(target):
         raise ValueError('{} not found'.format(target))
     log.info('Running dir_elements')
     e = dir_elements(target, recache=recache)
-    log.info('Running all_words')
-    w = all_words(e, recache=recache)
+    # log.info('Running all_words')
+    # w = all_words(e, recache=recache)
+    log.info('Running all_identifiers')
+    i = all_identifiers(e, recache=recache)
     if debug:
         import ipdb; ipdb.set_trace()
     if ppr:
-        msg(w)
+        pprin.pprint(i)
     else:
         print(tabulate_frequencies(word_frequencies(w)))
 
