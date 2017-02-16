@@ -120,6 +120,21 @@ class Extractor(object):
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
             return []
 
+
+    def get_words(self, id, recache=False):
+        self._sanity_check_id(id)
+        try:
+            return self._extractor.get_identifiers(id, recache)
+        except Pyro4.errors.ConnectionClosedError:
+            # Network connection lost.
+            self._log.error('Network connection lost: {}'.format(err))
+            return []
+        except Exception as err:
+            self._log.error('Exception: {}'.format(err))
+            self._log.error('------ Pyro traceback ------')
+            self._log.error(''.join(Pyro4.util.getPyroTraceback()))
+            return []
+
 
 # Client/server application.
 # .............................................................................
@@ -201,6 +216,7 @@ def main(key=None, client=False, logfile=None, loglevel=None, uri=None,
     extractor.get_repo_path(id)
     extractor.get_elements(id)
     extractor.get_words(id, filetype='all', recache=False)
+    extractor.get_identifiers(id, recache=False)
 '''
 
         IPython.embed(banner1=banner)
@@ -256,6 +272,12 @@ class ExtractorServer(object):
                          .format(id, filetype, recache))
         elements = self.get_elements(id, recache)
         return all_words(elements, filetype, recache)
+
+
+    def get_identifiers(self, id, recache=False):
+        self._log_action('get_identifiers({}, recache={})'.format(id, recache))
+        elements = self.get_elements(id, recache)
+        return all_identifiers(elements, recache)
 
 
 # Entry point
