@@ -142,33 +142,33 @@ def extract_text(filename, encoding='utf-8', retried=False):
                   .format(ext, filename, e))
         return []
 
-_common_ignored             = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
-_common_ignored_regexp      = re.compile(_common_ignored, re.IGNORECASE)
-_divider_line_regexp        = re.compile(r'^\W*[-=_.+^*#~]{2,}\W*$', flags=re.MULTILINE)
-_multiple_blank_line_regexp = re.compile(r'\n[ \t]*\n\n+')
-_two_newlines_regexp        = re.compile(r'(?<!\n)\n(?=[^\n])', flags=re.MULTILINE)
-_multiple_spaces_regexp     = re.compile(r'\s+')
+_common_ignored_regexp = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
+_common_ignored        = re.compile(_common_ignored_regexp, re.IGNORECASE)
+_divider_line          = re.compile(r'^\W*[-=_.+^*#~]{2,}\W*$', flags=re.MULTILINE)
+_multiple_blank_line   = re.compile(r'\n[ \t]*\n\n+')
+_two_newlines          = re.compile(r'(?<!\n)\n(?=[^\n])', flags=re.MULTILINE)
+_multiple_spaces       = re.compile(r'\s+')
 
-_rst_tags                   = r'(:param|:return|:type|:rtype)'
-_rst_tags_regexp            = re.compile(_rst_tags, flags=re.IGNORECASE)
+_rst_tags_regexp       = r'(:param|:return|:type|:rtype)'
+_rst_tags              = re.compile(_rst_tags_regexp, flags=re.IGNORECASE)
 
 # Common punctuation that doesn't get a period after it.
 # Note the next line is filled with special non-ascii characters.
 # Some of these look like they have spaces in them, but they don't!
-_okay_endings = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
-                 '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
-_okay_endings_regexp = re.compile(r'([^'+''.join(_okay_endings)+r'])([ \t]*)\n\n',
-                                  flags=re.MULTILINE)
+_okay_ending_chars = ('-', '–', '—', '…', '?', '!', '.', ',', ':', ';',
+                       '‚', '‼', '⁇', '⁈', '⁉︎', '：', '；', '．', '，')
+_okay_endings = re.compile(r'([^'+''.join(_okay_ending_chars)+r'])([ \t]*)\n\n',
+                           flags=re.MULTILINE)
 
 def clean_plain_text(text):
     '''Do limited cleaning of text that appears in Python code.'''
 
     # Remove obvious divider lines, like lines of repeated dashes.
-    text = re.sub(_divider_line_regexp, ' ', text)
+    text = re.sub(_divider_line, ' ', text)
     # Compress multiple blank lines.
-    text = re.sub(_multiple_blank_line_regexp, '\n\n', text)
+    text = re.sub(_multiple_blank_line, '\n\n', text)
     # Turn single newlines into spaces.
-    text = re.sub(_two_newlines_regexp, ' ', text)
+    text = re.sub(_two_newlines, ' ', text)
 
     # Don't bother going further if it's not written in a Western-style language.
     if human_language(text) not in ['en', 'fr', 'cs', 'cu', 'cy', 'da', 'de',
@@ -181,15 +181,15 @@ def clean_plain_text(text):
     text = unicodedata.normalize('NFKD', text)
     # Massage Sphinx style doc patterns to make it more clear where
     # sentence boundaries would be.
-    text = re.sub(_rst_tags_regexp, r'\n\n\1', text)
+    text = re.sub(_rst_tags, r'\n\n\1', text)
     # Remove random other things that are useless to us.
-    text = re.sub(_common_ignored_regexp, '', text)
+    text = re.sub(_common_ignored, '', text)
     # If there are two newlines in a row, treat it like a paragraph break,
     # and see if the text prior to that point has an ending period.  If it
     # doesn't, add one, on the heuristic basis that it's likely a sentence end.
-    text = re.sub(_okay_endings_regexp, r'\1.\2\n\n', text)
+    text = re.sub(_okay_endings, r'\1.\2\n\n', text)
     # Compress multiple spaces into one.
-    text = re.sub(_multiple_spaces_regexp,  ' ', text)
+    text = re.sub(_multiple_spaces,  ' ', text)
     # Strip blank space at the beginning and end of the whole thing.
     return text.strip()
 
@@ -215,11 +215,10 @@ _common_abbrevs = set([
     "p.m", "pp", "sc", "v", "vs",
 ])
 
-_odd_chars = '|<>&+=$%^'
+_odd_chars         = '|<>&+=$%^'
 _odd_char_splitter = str.maketrans(_odd_chars, ' '*len(_odd_chars))
-_stray_punct_regexp = re.compile('["`\',]')
-
-_max_word_length = 80
+_stray_punct       = re.compile('["`\',]')
+_max_word_length   = 80
 
 # Contractions can't be done entirely by regexp.  You need to use POS tagging
 # to disambiguate some cases.  However, I believe the following are unique
@@ -319,7 +318,7 @@ def tokenize_text(seq):
 
     def clean_words(sent):
         # Takes a list of words and cleans them to remove stray punctuation.
-        return [re.sub(_stray_punct_regexp, '', word) for word in sent]
+        return [re.sub(_stray_punct, '', word) for word in sent]
 
     # Replace common contractions that are safe to replace.
     replacer = RegexpReplacer(_common_contractions)
@@ -449,44 +448,44 @@ class RegexpReplacer(object):
 
 # Word-testing function and associated regexp's.
 
-_letter_regexp         = re.compile(r'[a-zA-Z]')
-_nonword_letter_regexp = re.compile(r"[^-'_.a-zA-Z]")
-_repeated_char_regexp  = re.compile(r'(.)\1{4,}')
-_repeated_seq_regexp   = re.compile(r'(.)\1{2,}(.)\2{2,}')
-_repeated_pat3_regexp  = re.compile(r'(.)(.)(.)\1\2\3\1\2\3')
-_repeated_pat4_regexp  = re.compile(r'(.)(.)(.)(.)\1\2\3\4\1\2\3\4')
-_dna_regexp            = re.compile(r'[atgc]{6,}', re.I)
-_rna_regexp            = re.compile(r'[augc]{6,}', re.I)
-_imb_regexp            = re.compile(r'[adft]{31,}', re.I)
-_alphabet_regexp       = re.compile(r'abcdefghijklmno', re.I)
-_random_nonword_regexp = re.compile(r'[bcdfghjklmnpqrstvwxzy]{9,}', re.I)
+_letter         = re.compile(r'[a-zA-Z]')
+_nonword_letter = re.compile(r"[^-'_.a-zA-Z]")
+_repeated_char  = re.compile(r'(.)\1{4,}')
+_repeated_seq   = re.compile(r'(.)\1{2,}(.)\2{2,}')
+_repeated_pat3  = re.compile(r'(.)(.)(.)\1\2\3\1\2\3')
+_repeated_pat4  = re.compile(r'(.)(.)(.)(.)\1\2\3\4\1\2\3\4')
+_dna            = re.compile(r'[atgc]{6,}', re.I)
+_rna            = re.compile(r'[augc]{6,}', re.I)
+_imb            = re.compile(r'[adft]{31,}', re.I)
+_alphabet       = re.compile(r'abcdefghijklmno', re.I)
+_random_nonword = re.compile(r'[bcdfghjklmnpqrstvwxzy]{9,}', re.I)
 
 def is_word(token):
     # Returns true if 'token' is plausibly a word.
     return (token
             and len(token) <= _max_word_length
             # Must have at least one letter.
-            and re.search(_letter_regexp, token)
+            and re.search(_letter, token)
             # Ignore tokens that have un-text-like characters in them.
-            and not re.search(_nonword_letter_regexp, token)
+            and not re.search(_nonword_letter, token)
             # Ignore tokens containing strings of 5 or more repeated chars.
             # (Has to be 5 because roman numerals can have 4 I's or M's.)
-            and not re.search(_repeated_char_regexp, token)
+            and not re.search(_repeated_char, token)
             # Ignore things that look like DNA or RNA sequences (!).
             # This is kind of conservative to avoid catching other things.
             # E.g.: "baggage", "Atacama", "attachment", "datatable".
-            and not re.search(_dna_regexp, token)
-            and not re.search(_rna_regexp, token)
+            and not re.search(_dna, token)
+            and not re.search(_rna, token)
             # Ignore USPS Intelligent Mail Barcode (IMb) barcodes.
-            and not re.search(_imb_regexp, token)
+            and not re.search(_imb, token)
             # Ignore what looks like the alphabet.
-            and not re.search(_alphabet_regexp, token)
+            and not re.search(_alphabet, token)
             # Ignore repeating shit like "aaabbb".
-            and not re.search(_repeated_seq_regexp, token)
-            and not re.search(_repeated_pat3_regexp, token)
-            and not re.search(_repeated_pat4_regexp, token)
+            and not re.search(_repeated_seq, token)
+            and not re.search(_repeated_pat3, token)
+            and not re.search(_repeated_pat4, token)
             # Random sequences
-            and not (re.search(_random_nonword_regexp, token) and len(token) >= 50))
+            and not (re.search(_random_nonword, token) and len(token) >= 50))
 
 
 # Utility functions.
