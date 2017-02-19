@@ -26,10 +26,10 @@
 # having as its associated value the name of a file or directory, the key
 # 'type' having as its value either 'dir' or 'file', and the key 'body'
 # containing the contents of the file or directory.  In the case of files,
-# the dictionary has two additional keys: 'text_language', for the
+# the dictionary has three additional keys: 'text_language', for the
 # predominant human language found in the text (based on the file header and
-# comments), and 'code_language', for the language of the program (if the
-# file is code).
+# comments), 'code_language', for the programming language (if the file is
+# code), and 'status', to indicate success or failure in parsing the file.
 #
 #  * If an item is a directory, the dictionary looks like this:
 #
@@ -38,7 +38,8 @@
 #  * If an item is a file, the dictionary looks like this:
 #
 #        { 'name': 'the file name', 'type': 'file', 'body': content,
-#          'code_language': 'the lang', 'text_language': 'the lang' }
+#          'code_language': 'the lang', 'text_language': 'the lang',
+#          'status': 'string' }
 #
 # In the case of a directory, the value associated with the key 'body' is a
 # list that can be either empty ([]) if the directory is empty, or else a
@@ -53,43 +54,42 @@
 #
 # Altogether, this leads to the following possibilities:
 #
-# * `{'name': 'abc', 'type': 'dir', 'body': []}` if `'name'` is an empty
-# * directory
+#  * {'name': 'X', 'type': 'dir', 'body': []} if 'name' is an empty directory
 #
-# * `{'name': 'abc', 'type': 'dir', 'body': [ ...dicts... ]` if it's not empty
+#  * {'name': 'X', 'type': 'dir', 'body': [ ...dicts... ] if it's not empty
 #
-# * `{'name': 'abc', 'type': 'file', 'body': '', ...} if the file is empty
+#  * {'name': 'X', 'type': 'file', 'body': '', ...} if the file is empty
 #
-# * `{'name': 'abc', 'type': 'file', 'body': None, ...} if the file is ignored
-#    because we don't parse that type
+#  * {'name': 'X', 'type': 'file', 'body': None, 'status': 'ignored' ...}
+#    if the file is ignored because we don't parse that type
 #
-# * `{'name': 'abc', 'type': 'file', 'body': '...string...', 'text_language':
-#   'en', 'code_language': Node}` if the file contains text in English but
-#   not code
+#  * {'name': 'X', 'type': 'file', 'body': '...string...', 'text_language':
+#    'en', 'code_language': Node, 'status': 'success'} if the file contains
+#    text in English but not code
 #
-# * `{'name': 'abc', 'type': 'file', 'body': { elements }, 'text_language':
-#   'en', 'code_language': 'Python' }` if the file contains Python code with
-#   English text
+#  * {'name': 'X', 'type': 'file', 'body': { elements }, 'text_language':
+#    'en', 'code_language': 'Python', 'status': 'success' } if the file
+#    contains Python code with English text
 #
-# When it comes to non-code text files, if the file is not literally plain
-# text, Extractor extracts the text from it.  It currently converts the
-# following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF,
-# Textile, and LaTeX/TeX.  It does this by using a variety of utilities such
-# as BeautifulSoup to convert the formats to plain text, and returns this as
-# a single string.  In the case of a code file, the value associated with the
-# `'body'` key is a dictionary of elements described in more detail below.
+# When it comes to non-code text files, if the file is not unstructured plain
+# text, Extractor extracts the text from it.  If the file contains structured
+# text, it can currently convert the following formats: HTML, Markdown,
+# AsciiDoc, reStructuredText, RTF, Textile, and LaTeX/TeX.  It does this by
+# using a variety of utilities such as BeautifulSoup to convert the formats
+# to plain text, and returns this as a single string.  In the case of a code
+# file, the value associated with the 'body' key is a dictionary of
+# elements described in more detail below.
 #
-# The text language inside files is inferred using
-# `[langid](https://github.com/saffsd/langid.py)` and the value for the key
-# `text_language` is a two-letter ISO 639-1 code (e.g., `'en'` for English).
-# The language inferrence is not perfect, particularly when there is not much
-# text in a file, but by examining all the text chunks in a file (including
-# all the separate comments) and returning the most frequently-inferred
-# language, Extractor can do a reasonable job.  If there is no text at all
-# (no headers, no comments), Extractor defaults to `'en'`.
+# The text language inside files is inferred using "langid" and the value for
+# the key text_language is a two-letter ISO 639-1 code (e.g., 'en' for
+# English).  The language inferrence is not perfect, particularly when there
+# is not much text in a file, but by examining all the text chunks in a file
+# (including all the separate comments) and returning the most
+# frequently-inferred language, Extractor can do a reasonable job.  If there
+# is no text at all (no headers, no comments), Extractor defaults to 'en'.
 #
-# In the case of a code file, the value associated with the
-# 'body' key is a dictionary of elements described in more detail below.
+# In the case of a code file, the value associated with the 'body' key is a
+# dictionary of elements described in more detail below.
 #
 #  * header text (which is the entire content in case of text files)
 #  * list of imports
@@ -98,6 +98,7 @@
 #  * list of function names
 #  * list of variable names
 #  * list of comments
+#  * list of documentation strings
 #  * list of strings
 #
 # The predominant text language of a file is reported as a two-character ISO
@@ -112,6 +113,23 @@
 # such as encountering a syntactic error in the code.  (The latter happens
 # because the process parses code into an AST to extract the elements, and
 # this can fail if the code is unparseable.)
+#
+# The 'status' value will reflect success or failure of parsing.  The
+# possible values are:
+#
+#  * 'success'     -- successful parse
+#  * 'error'       -- something went wrong during parsing
+#  * 'empty'       -- if the file is empty
+#  * 'large'       -- skipped because the file size exceeds our threshold
+#  * 'ignored'     -- skipped because the file is a kind we deliberately ignore
+#  * 'unsupported' -- skipped because the file is a kind we don't support (yet)
+#  * 'unhandled'   -- skipped because the file is a kind we don't handle
+#
+# A final note about parsing code files: it is possible that the status code
+# will be 'error' and yet there may be some elements returned in the file
+# dictionary.  This is because extracting comments and file headers may
+# succeeded but extracting the remaining file elements may fail.  In that
+# case, the extractor will return what it could get.
 
 import bs4
 import chardet
@@ -207,9 +225,17 @@ def dir_elements_recursive(path):
     from text_extractor import extract_text
     from file_parser import file_elements
 
-    def file_dict(filename, body_elements, code_lang, text_lang):
-        return {'name': filename, 'type': 'file', 'body': body_elements,
-                'text_language': text_lang, 'code_language': code_lang}
+    def file_dict(filename, elements, code_lang, text_lang, explicit_status=None):
+        if explicit_status:
+            status = explicit_status
+        else:
+            if isinstance(elements, dict):
+                status = elements['parse_result']
+            else:
+                status = 'success' if (elements and elements != '') else 'error'
+        return {'name': filename, 'type': 'file', 'body': elements,
+                'text_language': text_lang, 'code_language': code_lang,
+                'status': status}
 
     # Recursive directory walker.
     full_path = os.path.join(os.getcwd(), path)
@@ -231,15 +257,15 @@ def dir_elements_recursive(path):
                 continue
             elif excessively_large_file(file):
                 log.debug('skipping large text file: {}'.format(file))
-                contents.append(file_dict(file, None, None, None))
+                contents.append(file_dict(file, None, None, None, 'large'))
                 continue
             elif empty_file(file):
                 log.debug('skipping empty file: {}'.format(file))
-                contents.append(file_dict(file, '', None, None))
+                contents.append(file_dict(file, '', None, None, 'empty'))
                 continue
             elif ignorable_file(file):
                 log.debug('skipping ignorable file: {}'.format(file))
-                contents.append(file_dict(file, None, None, None))
+                contents.append(file_dict(file, None, None, None, 'ignored'))
                 continue
             elif python_file(file):
                 elements = file_elements(file)
@@ -248,7 +274,7 @@ def dir_elements_recursive(path):
                 continue
             elif is_code_file(file):
                 log.debug('skipping currently unhandled code file: {}'.format(file))
-                contents.append(file_dict(file, None, None, None))
+                contents.append(file_dict(file, None, None, None, 'unsupported'))
                 continue
             elif document_file(file):
                 text = extract_text(file)
@@ -258,10 +284,10 @@ def dir_elements_recursive(path):
 
             # Fall-back for cases we don't handle.
             log.info('unhandled file type: {}'.format(file))
-            contents.append(file_dict(file, None, None, None))
+            contents.append(file_dict(file, None, None, None, 'unhandled'))
         for dir in subdirs:
             if ignorable_dir(dir):
-                log.debug('ignorable directory: {}'.format(dir))
+                log.debug('skipping ignorable directory: {}'.format(dir))
             else:
                 contents.append(dir_elements_recursive(dir))
 

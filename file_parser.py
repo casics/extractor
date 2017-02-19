@@ -509,16 +509,17 @@ def file_elements(filename):
     # Set up the dictionary.  We may end up returning only part of this
     # filled out, if we encounter errors along the way.
 
-    elements               = {}
-    elements['header']     = ''
-    elements['comments']   = []
-    elements['docstrings'] = []
-    elements['imports']    = []
-    elements['classes']    = []
-    elements['functions']  = []
-    elements['variables']  = []
-    elements['strings']    = []
-    elements['calls']      = []
+    elements                 = {}
+    elements['header']       = ''
+    elements['comments']     = []
+    elements['docstrings']   = []
+    elements['imports']      = []
+    elements['classes']      = []
+    elements['functions']    = []
+    elements['variables']    = []
+    elements['strings']      = []
+    elements['calls']        = []
+    elements['parse_result'] = 'success'
 
     # Open the file for reading.  FileIO is needed for the Python 'ast' module.
 
@@ -548,16 +549,26 @@ def file_elements(filename):
                 # Something is wrong. Bail.
                 log.warn('conversion failed -- giving up on {}'.format(full_path))
                 # At this point, we still have an empty elements dictionary.
+                elements['parse_result'] = 'error'
                 return elements
         except Exception as err:
-            log.error('error trying to detected if {} uses Python 2'.format(full_path))
+            log.error('error trying to detect if {} uses Python 2'.format(full_path))
             log.error(err)
+            elements['parse_result'] = 'error'
+            cleanup()
             return elements
 
     # Pass #1: use tokenize to find and store headers and comments.
 
     log.debug('tokenizing {}'.format(full_path))
-    tokens = tokenize(stream.readline)
+    try:
+        tokens = tokenize(stream.readline)
+    except Exception as err:
+        log.error('error trying to tokenize {}'.format(full_path))
+        log.error(err)
+        elements['parse_result'] = 'error'
+        cleanup()
+        return elements
 
     # Look for a header at the top, if any.  There are two common forms in
     # Python: a string, and a comment block.  The heuristic used here is that
@@ -628,12 +639,19 @@ def file_elements(filename):
     except Exception as err:
         log.error('AST parsing failed; returning what we have so far'.format(full_path))
         cleanup()
+        elements['parse_result'] = 'error'
         return elements
 
     # We were able to parse the file into an AST.
 
-    collector = ElementCollector()
-    collector.visit(tree)
+    try:
+        collector = ElementCollector()
+        collector.visit(tree)
+    except Exception as err:
+        log.error('internal AST code walking error'.format(full_path))
+        cleanup()
+        elements['parse_result'] = 'error'
+        return elements
 
     # We store the names of variables we find temporarily as paths separated
     # by '|' so that we can find unique variable name assignments within each
