@@ -121,7 +121,7 @@ class Extractor(object):
             return []
 
 
-    def get_words(self, id, recache=False):
+    def get_identifiers(self, id, recache=False):
         self._sanity_check_id(id)
         try:
             return self._extractor.get_identifiers(id, recache)
