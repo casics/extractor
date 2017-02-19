@@ -426,7 +426,7 @@ def all_words_recursive(elements, filetype='all'):
     return words
 
 
-def all_identifiers(wrapper, recache=False, splitter=samurai_split):
+def all_identifiers(wrapper, recache=False, splitter=simple_split):
     '''Take a recursive directory/file elements dictionary and return all
     identifiers (class names, variable names, function names, function calls,
     imported module names) along with the number of occurrences of each.  The
