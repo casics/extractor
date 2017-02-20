@@ -616,7 +616,7 @@ def extract_code_identifiers(body, splitter):
     return ids
 
 
-def html_from_pandoc(filename, max_time=5):
+def html_from_pandoc(filename):
     '''Convert asciidoc file to HTML.'''
     # Gave up on pypandoc because I ran into a file that caused it to never
     # finish.  The problem was that pandoc itself never finished on the file
@@ -631,7 +631,7 @@ def html_from_pandoc(filename, max_time=5):
     return output_from_external_converter(cmd)
 
 
-def output_from_external_converter(cmd, timeout=10):
+def output_from_external_converter(cmd, timeout=20):
     log = Logger().get_log()
     log.debug(' '.join(cmd))
     (status, output, errors) = shell_cmd(cmd, max_time=timeout)
