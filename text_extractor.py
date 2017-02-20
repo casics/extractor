@@ -29,6 +29,7 @@ import pickle
 import plac
 import pprint
 import re
+import subprocess
 import sys
 import tempfile
 import textile
@@ -137,11 +138,11 @@ def extract_text(filename, encoding='utf-8', retried=False):
                     guess['encoding'] = 'utf-8'
                 return extract_text(filename, guess['encoding'], True)
         log.error('*** unconvertible encoding in file {}'.format(filename))
-        return []
+        return None
     except Exception as e:
-        log.error('*** unable to extract text from {} file {}: {}'
-                  .format(ext, os.path.join(os.getcwd(), filename), e))
-        return []
+        log.error('*** unable to extract text from {}: {}'
+                  .format(os.path.join(os.getcwd(), filename), e))
+        return None
 
 _common_ignored_regexp = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
 _common_ignored        = re.compile(_common_ignored_regexp, re.IGNORECASE)
@@ -624,21 +625,23 @@ def html_from_pandoc(filename, max_time=5):
     # a pandoc process looping in the background.  (See the code at the end
     # of this file.)  So finally after hours of struggling, I gave up and went
     # the route of a normal subprocess and a timeout.
-    with timeout(duration=5):
-        cmd = ['pandoc', '--to=html5', '--ascii',
-               os.path.join(os.getcwd(), filename)]
-        return output_from_external_converter(cmd)
-    import ipdb; ipdb.set_trace()
-    return ''
+
+    full_path = os.path.join(os.getcwd(), filename)
+    cmd = ['pandoc', '--to=html5', '--ascii', full_path]
+    return output_from_external_converter(cmd)
 
 
-def output_from_external_converter(cmd):
+def output_from_external_converter(cmd, timeout=10):
     log = Logger().get_log()
     log.debug(' '.join(cmd))
-    (status, output, errors) = shell_cmd(cmd)
+    (status, output, errors) = shell_cmd(cmd, max_time=timeout)
     if status == 0:
         return output
+    elif status == -9:
+        log.error('*** {} killed after {}s timeout'.format(cmd[0], timeout))
+        return None
     else:
+        log.error('*** call to {} failed: {}'.format(cmd[0], errors))
         raise ShellCommandException('{} failed: {}'.format(cmd[0], errors))
 
 
