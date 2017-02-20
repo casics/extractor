@@ -21,13 +21,13 @@ import keyword
 import magic
 import markdown
 import math
+from   multiprocessing import Process, Manager
 import nltk
 import operator
 import os
 import pickle
 import plac
 import pprint
-import pypandoc
 import re
 import sys
 import tempfile
@@ -70,53 +70,53 @@ def extract_text(filename, encoding='utf-8', retried=False):
     try:
         with open(filename, 'r', encoding=encoding, errors='replace') as file:
             if ext in constants.common_puretext_extensions:
-                log.info('Extracting text from pure text file {}'.format(filename))
+                log.info('extracting text from pure text file {}'.format(filename))
                 return clean_plain_text(file.read())
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn', '.mdown']:
                 # Testing showed better text output results using markdown
                 # module than using pypandoc.  Don't know why, don't care.
-                log.info('Extracting text from markdown file {}'.format(filename))
+                log.info('extracting text from markdown file {}'.format(filename))
                 html = markdown.markdown(file.read(), output_format='html4')
                 return convert_html(html)
             elif ext.startswith('.htm'):
-                log.info('Extracting text from HTML file {}'.format(filename))
+                log.info('extracting text from HTML file {}'.format(filename))
                 return convert_html(file.read())
             elif ext in ['.asciidoc', '.adoc', '.asc']:
-                log.info('Extracting text from AsciiDoc file {}'.format(filename))
+                log.info('extracting text from AsciiDoc file {}'.format(filename))
                 html = html_from_asciidoc_file(filename)
                 return convert_html(html)
             elif ext in ['.rst']:
-                log.info('Extracting text from rST file {}'.format(filename))
-                html = pypandoc.convert_file(filename, to='html')
+                log.info('extracting text from rST file {}'.format(filename))
+                html = html_from_pandoc(filename)
                 return convert_html(html)
             elif ext in ['.rtf']:
-                log.info('Extracting text from RTF file {}'.format(filename))
+                log.info('extracting text from RTF file {}'.format(filename))
                 html = html_from_rtf_file(filename)
                 return convert_html(html)
             elif ext in ['.textile']:
-                log.info('Extracting text from Textile file {}'.format(filename))
+                log.info('extracting text from Textile file {}'.format(filename))
                 html = textile.textile(file.read())
                 return convert_html(html)
             elif ext in ['.tex']:
-                log.info('Extracting text from LaTeX/TeX file {}'.format(filename))
-                html = pypandoc.convert_file(filename, to='html')
+                log.info('extracting text from LaTeX/TeX file {}'.format(filename))
+                html = html_from_pandoc(filename)
                 return convert_html(html)
             elif ext in ['.docx', '.odt']:
-                log.info('Extracting text from office {} file {}'
+                log.info('extracting text from office {} file {}'
                           .format(ext, filename))
-                html = pypandoc.convert_file(filename, to='html')
+                html = html_from_pandoc(filename)
                 return convert_html(html)
             elif ext in ['.texi', '.texinfo']:
-                log.info('Extracting text from TeXinfo file {}'.format(filename))
+                log.info('extracting text from TeXinfo file {}'.format(filename))
                 html = html_from_texinfo_file(filename)
                 return convert_html(html)
             # Turns out pypandoc can't handle .org files, though Pandoc can.
             # elif ext in ['.org']:
-            #     log.debug('Extracting text from org-mode file {}'.format(filename))
-            #     html = pypandoc.convert_file(filename, to='html')
+            #     log.debug('extracting text from org-mode file {}'.format(filename))
+            #     html = html_from_pandoc(filename)
             #     return convert_html(html)
             elif ext[1:].isdigit():
-                log.info('Extracting text from *roff file {}'.format(filename))
+                log.info('extracting text from *roff file {}'.format(filename))
                 html = html_from_roff_file(filename)
                 return convert_html(html)
             else:
@@ -140,7 +140,7 @@ def extract_text(filename, encoding='utf-8', retried=False):
         return []
     except Exception as e:
         log.error('*** unable to extract text from {} file {}: {}'
-                  .format(ext, filename, e))
+                  .format(ext, os.path.join(os.getcwd(), filename), e))
         return []
 
 _common_ignored_regexp = r'\(c\)|::|:-\)|:\)|:-\(|:-P|<3|->|-->'
@@ -615,6 +615,23 @@ def extract_code_identifiers(body, splitter):
     return ids
 
 
+def html_from_pandoc(filename, max_time=5):
+    '''Convert asciidoc file to HTML.'''
+    # Gave up on pypandoc because I ran into a file that caused it to never
+    # finish.  The problem was that pandoc itself never finished on the file
+    # -- must be some bug.  Anyway, attempting to run pypandoc inside a
+    # python subprocess and kill that after a timeout didn't work: it left
+    # a pandoc process looping in the background.  (See the code at the end
+    # of this file.)  So finally after hours of struggling, I gave up and went
+    # the route of a normal subprocess and a timeout.
+    with timeout(duration=5):
+        cmd = ['pandoc', '--to=html5', '--ascii',
+               os.path.join(os.getcwd(), filename)]
+        return output_from_external_converter(cmd)
+    import ipdb; ipdb.set_trace()
+    return ''
+
+
 def output_from_external_converter(cmd):
     log = Logger().get_log()
     log.debug(' '.join(cmd))
@@ -818,3 +835,35 @@ run_text_extractor.__annotations__ = dict(
 
 if __name__ == '__main__':
     plac.call(run_text_extractor)
+
+
+
+# .............................................................................
+# Saving for reference
+
+# The following doesn't work. A pandoc process is left looping in the
+# background, consuming 100% of a cpu core.
+
+# log = Logger().get_log()
+# full_path = os.path.join(os.getcwd(), filename)
+
+# def pandoc_runner():
+#     log.debug('running pypandoc on {}'.format(full_path))
+#     output['output'] = pypandoc.convert_file(full_path, to='html')
+
+# with Manager() as manager:
+#     output = manager.dict()
+#     output['output'] = ''
+#     p = Process(target=pandoc_runner)
+#     p.daemon = True
+#     try:
+#         p.start()
+#         if p.is_alive():
+#             p.join(max_time)
+#         if p.is_alive():
+#             log.error('*** pandoc killed after {}s timeout'.format(max_time))
+#             p.terminate()
+#     except Exception as err:
+#         log.error('*** pypandoc subprocess exception {}'.format(err))
+#     finally:
+#         return output['output']
