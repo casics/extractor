@@ -25,7 +25,6 @@ from   multiprocessing import Process, Manager
 import nltk
 import operator
 import os
-import pickle
 import plac
 import pprint
 import re
@@ -46,6 +45,7 @@ sys.path.append('../detector')
 sys.path.append('../cataloguer')
 sys.path.append('../common')
 sys.path.append('../splitters')
+sys.path.append('../nonsense')
 
 from utils import *
 
@@ -547,7 +547,7 @@ def is_word(token):
             # Ignore tokens that have un-text-like characters in them.
             and not re.search(_nonword_letter, token)
             # Ignore tokens containing strings of 5 or more repeated chars.
-            # (Has to be 5 because roman numerals can have 4 I's or M's.)
+            # The threshold is high to avoid catching most Roman numerals.
             and not re.search(_repeated_char, token)
             # Ignore things that look like DNA or RNA sequences (!).
             # This is kind of conservative to avoid catching other things.
@@ -775,6 +775,14 @@ def convert_html(html):
 
     # Return a single text string.
     return unsoupify(soup)
+
+
+def is_ascii(s):
+    '''Return True if the string contains only ASCII characters.'''
+    try:
+        return all(ord(c) < 128 for c in s)
+    except TypeError:
+        return False
 
 
 def unsoupify(soup):
