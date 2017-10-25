@@ -1,3 +1,0 @@
-James Turk <james.p.turk@gmail.com>
-Jeremy Carbaugh - design help and minor fixes
-Carl J Meyer <carl@dirtcircle.com> - conversion to single MARKUP_FILTER setting

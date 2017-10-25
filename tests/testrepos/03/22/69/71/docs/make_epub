@@ -1,2 +1,0 @@
-#!/bin/sh
-make clean epub SPHINXBUILD=../env26/bin/sphinx-build
