@@ -1,0 +1,309 @@
+
+// ----------------------------------------------------------------------------
+__construct
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    void __construct(string $l, integer $i, AITPDO $pdo, integer $id = false)
+
+Description
++++++++++++
+
+Constructeur
+
+Paramètres
+++++++++++
+
+string *$l*:: Label du type de tag.
+integer *$i*:: Identifiant système du type d'item associé. 
+AITPDO *$pdo*::  L'instance de base AIT que l'on souhaite utiliser.
+integer *$id*:: Identifiant système de l'élément (si déjà connu) .
+
+
+// ----------------------------------------------------------------------------
+newTag
+^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Tag newTag()
+
+Description
++++++++++++
+
+Crée un tag. Son label est calculé automatiquement en fonction de l'identifiant système.
+
+Paramètres
+++++++++++
+
+Aucun.
+
+Retour
+++++++
+
+un objet AIT_Tag.
+
+Exemple
++++++++
+
+[source]
+-------------------------------------------------
+include::../examples/AIT_TagType-newTag.php[]
+-------------------------------------------------
+
+// ----------------------------------------------------------------------------
+defTag
+^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Tag defTag(string $l)
+
+Description
++++++++++++
+
+Récupére un tag du type courant. Si le tag n'existe pas, il est automatiquement créé.
+
+Paramètres
+++++++++++
+
+string *$l*:: nom du nouveau tag
+
+
+Retour
+++++++
+
+Un objet AIT_Tag représentant le tag
+
+
+// ----------------------------------------------------------------------------
+addTag
+^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Tag addTag(string $l)
+
+Description
++++++++++++
+
+Ajout d'un tag au type de tag courant
+
+Paramètres
+++++++++++
+
+string *$l*:: nom du nouveau tag
+
+
+Retour
+++++++
+
+Un objet AIT_Tag représentant le nouveau tag
+
+//[source]
+//-------------------------------------------------
+//include::../examples/AIT_TagType-addTag.php[]
+//-------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+getTag
+^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Tag getTag(string $l)
+
+Description
++++++++++++
+
+Récupère un tag
+
+Paramètres
+++++++++++
+
+string *$l*:: nom du tag
+
+
+Retour
+++++++
+
+Un objet AIT_Tag représentant le tag trouvé ou NULL si il n'existe pas.
+
+// ----------------------------------------------------------------------------
+getTags
+^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult getTags(integer $offset=null, integer $lines=null, integer $ordering=null, array $cols=[])
+
+Description
++++++++++++
+
+Retourne tous les tags du type de tag courant.
+
+Paramètres
+++++++++++
+
+integer *$offset*:: décalage à partir du premier enregistrement.
+integer *$lines*:: nombre de lignes à retourner.
+integer *$ordering*:: flag permettant le tri.
+array *$cols*:: filtre sur les champs complémentaires
+
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Tag.
+
+// ----------------------------------------------------------------------------
+getTagBySystemID
+^^^^^^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_Tag getTagBySystemID(inetger $i)
+
+Description
++++++++++++
+
+Récupère un tag avec son identifiant système.
+
+Paramètres
+++++++++++
+
+integer *$i*:: l'identifiant système.
+
+Retour
+++++++
+
+Un objet AIT_Tag représentant le tag trouvé.
+
+// ----------------------------------------------------------------------------
+countItems
+^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AIT_TagType::countItems()
+
+Description
++++++++++++
+
+Retourne le nombre total de tags attachés au type de tag courrant.
+
+Paramètres
+++++++++++
+
+Aucun.
+
+Retour
+++++++
+
+un nombre entier représentant le nombre d'enregistrement.
+
+[source,php]
+-------------------------------------------------
+include::../examples/AIT_TagType-countItems.php[]
+-------------------------------------------------
+
+// ----------------------------------------------------------------------------
+del
+^^^
+
+Synopsis
+++++++++
+
+    void del(boolean $cascade = false)
+
+Description
++++++++++++
+
+Suppression de l'élément et des tags qui lui sont associés. 
+On peut également avec le paramètre $cascade supprimer les items associés aux tags.
+
+
+Paramètres
+++++++++++
+
+boolean *$cascade*:: permet une suppression en cascade
+
+Retour
+++++++
+
+NULL.
+
+// ----------------------------------------------------------------------------
+searchTags
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult searchTags(mixed $query, integer $offset=null, integer $lines=null, integer $ordering=null array $cols=[])
+
+Description
++++++++++++
+
+Recherche des tags du type courant
+
+Paramètres
+++++++++++
+
+string *$query*:: requete (le format peut varier en focntion de la callback) sans callback c'est une chaine de caractères contenant du SQL 
+integer *$offset*:: décalage à partir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Tag.
+
+// ----------------------------------------------------------------------------
+selectTags
+^^^^^^^^^^^
+
+Synopsis
+++++++++
+
+    AITResult selectTags(mixed $query, integer $offset=null, integer $lines=null, integer $ordering=null array $cols=[])
+
+Description
++++++++++++
+
+Recherche des tags du type courant. (alias de searchItems)
+
+Paramètres
+++++++++++
+
+string *$query*:: requete (le format peut varier en focntion de la callback) sans callback c'est une chaine de caractères contenant du SQL 
+integer *$offset*:: décalage à partir du premier enregistrement 
+integer *$lines*:: nombre de lignes à retourner 
+integer *$ordering*:: flag permettant le tri
+array *$cols*:: filtre sur les champs complémentaires
+
+
+
+Retour
+++++++
+
+un objet AITResult (ArrayObject) contenant des objets AIT_Tag.
+
+
+include::../AIT.txt[]
+// vim: set syntax=asciidoc encoding=utf8 spl=fr:
