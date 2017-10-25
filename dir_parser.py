@@ -145,7 +145,6 @@ import math
 import nltk
 import operator
 import os
-import pickle
 import plac
 import pprint
 import pypandoc
