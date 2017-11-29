@@ -156,18 +156,10 @@ from   time import sleep
 from   timeit import default_timer as timer
 from   tokenize import tokenize, COMMENT, STRING, NAME
 
-sys.path.append('../database')
-sys.path.append('../detector')
-sys.path.append('../cataloguer')
-sys.path.append('../common')
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-import constants
-from utils import *
-from file_parser import *
-from content_inferencer import *
-from text_extractor import *
-from human_language import *
-from logger import *
+from common.messages import *
+from common.logger import *
 
 
 # Constants for this module.
