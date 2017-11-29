@@ -5,7 +5,7 @@ CASICS Extractor
 
 The goal of the CASICS Extractor is to extract text and features from files, and serve them over a network API to other modules that do inference.
 
-*Authors*:      [Michael Hucka](http://github.com/mhucka) and [Matthew J. Graham](https://github.com/doccosmos)<br>
+*Authors*:      [Michael Hucka](http://github.com/mhucka)<br>
 *Repository*:   [https://github.com/casics/extractor](https://github.com/casics/extractor)<br>
 *License*:      Unless otherwise noted, this content is licensed under the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) license.
 
@@ -16,8 +16,34 @@ This module is a network server (_Extractor_) that is meant to run on the source
 
 The goal of Extractor is to extract text and features from files.  It does _some_ generic cleanup of what it finds, to produce a result that (hopefully) subsequent stages can use as a more effective starting point for different processes.
 
-The formats of the text data
-----------------------------
+⧈ Interacting with the Extractor using the API
+----------------------------------------------
+
+To call Extractor from a program, first import the module and then create an object of class `ExtractorClient` with arguments for the URI and the crypto key (in that order).  After that, the same methods above will be available on the object.  Example:
+
+    from extractor import ExtractorClient
+
+    extractor = ExtractorClient(uri, key)
+    print(extractor.get_status())
+
+☛ Interacting with Extractor on the command line
+------------------------------------------------
+
+The API provided by Extractor consists of a handful of methods on the RPC endpoint.  The file `extractor.py` implements a simple interactive REPL interface for exploring and testing, although calling programs can interact with the interface interface more directly.  The interactive interface in `extractor.py` can be started by providing the URI to the server instance, and a cryptographic key:
+
+    ./extractor.py -k THE_KEY -u THE_URI
+
+The values of `THE_KEY` and `THE_URI` are not stored anywhere and must be communicated separately.  Once the interactive interface starts up (it's just a normal IPython loop), the object `extractor` is the handle to the RPC interface.  The following are the available methods:
+
+* `extractor.get_elements(ID)` returns the structure discussed above for the repository whose identifier is `ID`.
+* `extractor.get_words(id)`: return a list of all words in both text and code files.
+* `extractor.get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
+* `extractor.get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
+* `extractor.get_repo_path(ID)` returns a single string, the repository path, for a repository whose identifier is `ID`.
+* `extractor.get_status()` returns a string with some information about the status of the server
+
+❀ The formats of the text data returned by `get_words()`
+--------------------------------------------------------
 
 The extractor `get_words(...)` function returns a list of textual words found in files in a repository.  It currently only understands (1) English plain-text files, (2) files that can be converted to plain text (such as HTML and Markdown), and (3) Python code files.  It takes a repository identifier and an optional argument to tell it to limit consideration to only text or code files:
 
@@ -39,8 +65,8 @@ The list of words is processed to a limited extent.  The transformations are:
 The processes above are intended to balance the risk of incorrectly interpreting a word or term, with the need to normalize the text to _some_ degree.
 
 
-The format of the file/directory elements data
-----------------------------------------------
+✐ The format of the file/directory elements data returned by `get_elements()`
+----------------------------------------------------------------------------
 
 The Extractor function `get_elements(...)` returns a dictionary representation of all the files and subdirectories in a repository.
 
@@ -77,37 +103,8 @@ When it comes to non-code text files, if the file is not literally plain text, E
 
 The text language inside files is inferred using [langid](https://github.com/saffsd/langid.py) and the value for the key `text_language` is a two-letter ISO 639-1 code (e.g., `'en'` for English).  The language inferrence is not perfect, particularly when there is not much text in a file, but by examining all the text chunks in a file (including all the separate comments) and returning the most frequently-inferred language, Extractor can do a reasonable job.  If there is no text at all (no headers, no comments), Extractor defaults to `'en'` because programming languages themselves are usually written in English.
 
-
-Interacting with Extractor on the command line
-------------------------------------------------
-
-The API provided by Extractor consists of a handful of methods on the RPC endpoint.  The file `extractor.py` implements a simple interactive REPL interface for exploring and testing, although calling programs can interact with the interface interface more directly.  The interactive interface in `extractor.py` can be started by providing the URI to the server instance, and a cryptographic key:
-
-    ./extractor.py -k THE_KEY -u THE_URI
-
-The values of `THE_KEY` and `THE_URI` are not stored anywhere and must be communicated separately.  Once the interactive interface starts up (it's just a normal IPython loop), the object `extractor` is the handle to the RPC interface.  The following are the available methods:
-
-* `extractor.get_elements(ID)` returns the structure discussed above for the repository whose identifier is `ID`.
-* `extractor.get_words(id)`: return a list of all words in both text and code files.
-* `extractor.get_words(id, filetype='text')`: return a list of all words in text files, ignoring code files.
-* `extractor.get_words(id, filetype='code')`: return a list of all words in code files, ignoring text files.
-* `extractor.get_repo_path(ID)` returns a single string, the repository path, for a repository whose identifier is `ID`.
-* `extractor.get_status()` returns a string with some information about the status of the server
-
-
-Programming calls to Extractor
---------------------------------
-
-To call Extractor from a program, first import the module and then create an object of class `ExtractorClient` with arguments for the URI and the crypto key (in that order).  After that, the same methods above will be available on the object.  Example:
-
-    from extractor import ExtractorClient
-
-    extractor = ExtractorClient(uri, key)
-    print(extractor.get_status())
-
-
-More information about the parsed file contents
------------------------------------------------
+☺︎ More information about the parsed file contents
+-------------------------------------------------
 
 The file parser attempts to reduce code files to "essentials" by throwing away most things and segregating different types of elements.  Some of the entities are just lists of strings, while others are tuples of (`'thing'`, _frequency_) in which the number of times the `'thing'` is found is counted and reported.  The elements in the dictionary are as follows:
 
@@ -178,9 +175,8 @@ Then, the dictionary returned by Extractor for this file will look like this:
 
 The dictionary of elements can have empty values for the various keys even when a file contains code that we parse (currently, Python).  This can happen if the file is empty or something goes badly wrong during parsing such as encountering a syntactic error in the code.  (The latter happens because the process parses code into an AST to extract the elements, and this can fail if the code is unparseable.)
 
-
-More information about text processing performed
-------------------------------------------------
+☕ More information about text processing performed
+--------------------------------------------------
 
 There are two text processing situations that Extractor encounters: non-code files that contain text, and code (currently, Python) files.  In both cases, Extractor cleans up and processes the text to a limited extent in order to try to make it more easily processed by subsequent natural language procedures.
 
