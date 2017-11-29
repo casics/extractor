@@ -1,7 +1,18 @@
-Extractor
-===========
+CASICS Extractor
+================
 
-This provides a network server (_Extractor_) that is meant to run on the repository server.  Given a repository id, it can return different extracted text and features from our cached copy of the repository.  The network communication protocol is implemented using [Pyro4](https://pythonhosted.org/Pyro4/), a very easy-to-use Python RPC library.
+<img width="100px" align="right" src=".graphics/casics-logo-small.svg">
+
+The goal of the CASICS Extractor is to extract text and features from files, and serve them over a network API to other modules that do inference.
+
+*Authors*:      [Michael Hucka](http://github.com/mhucka) and [Matthew J. Graham](https://github.com/doccosmos)<br>
+*Repository*:   [https://github.com/casics/extractor](https://github.com/casics/extractor)<br>
+*License*:      Unless otherwise noted, this content is licensed under the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) license.
+
+☀ Introduction
+-----------------------------
+
+This module is a network server (_Extractor_) that is meant to run on the source code repository server.  Given a repository identifier, it can return different extracted text and features from our cached copy of that source code repository.  The network communication protocol is implemented using [Pyro4](https://pythonhosted.org/Pyro4/), a very easy-to-use Python RPC library that allows complex objects to be exchanged.
 
 The goal of Extractor is to extract text and features from files.  It does _some_ generic cleanup of what it finds, to produce a result that (hopefully) subsequent stages can use as a more effective starting point for different processes.
 
@@ -176,3 +187,20 @@ There are two text processing situations that Extractor encounters: non-code fil
 For non-code files, if the file is not literally plain text, Extractor first extracts the text from it.  It currently converts the following formats: HTML, Markdown, AsciiDoc, reStructuredText, RTF, and Textile.  Its approach always begins by converting these formats to HTML, and then it post-processes the results.  The post-processing performed is to add periods at the ends of titles, paragraphs, list items, and table cells, if periods are missing, to make the result appear more like normal English sentences.  (This makes it easier for a sentence segmentation function to take the result and parse the text into sentences.)  Extractor also removes `<pre>` and `<img>` elements completely.
 
 For code files, the text that appears in (1) the header section, (2) doc strings, (3) comments and (4) other strings, is extracted individually as described in a separate section above.  Extractor performs some additional post-processing on the text, again mostly aimed at turning fragments of text into sentences based on heuristics, but also including some miscellaneous cleanup operations like removing non-alphanumeric characters that are not part of identifiers.
+
+⁇ Getting help and support
+--------------------------
+
+If you find an issue, please submit it in [the GitHub issue tracker](https://github.com/casics/extractor/issues) for this repository.
+
+♬ Contributing &mdash; info for developers
+------------------------------------------
+
+A lot remains to be done on CASICS in many areas.  We would be happy to receive your help and participation if you are interested.  Please feel free to contact the developers either via GitHub or the mailing list [casics-team@googlegroups.com](casics-team@googlegroups.com).
+
+Everyone is asked to read and respect the [code of conduct](CONDUCT.md) when participating in this project.
+
+❤️ Acknowledgments
+------------------
+
+Funding for this and other CASICS work has come from the [National Science Foundation](https://nsf.gov) via grant NSF EAGER #1533792 (Principal Investigator: Michael Hucka).
