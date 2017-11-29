@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+# =============================================================================
+# @file    extractor-server
+# @brief   Server control interface for CASICS Extractor
+# @author  Michael Hucka <mhucka@caltech.edu>
+# @license Please see the file named LICENSE in the project directory
+# @website https://github.com/casics/extractor
+#
+# This provides an interactive command-line interface for communicating with
+# the CASICS Extractor.  This is useful for testing and experimenting.
+# =============================================================================
+
+# Allow this program to be executed directly from the 'bin' directory.
+import os
+import sys
+import plac
+import Pyro4
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
+from common.logger import *
+from extractor import *
+
+# The following sets up Pyro4 to print full traces when exceptions occur.
+# See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version
+
+sys.excepthook = Pyro4.util.excepthook
+
+
+# Global constants.
+# .............................................................................
+
+_DEFAULT_PORT      = 9999
+'''Default port for Extractor server to listen on for client connections.'''
+
+_DEFAULT_REPO_ROOT = '/srv/repositories'
+'''Default directory where copies of source code repositories are stored.'''
+
+_DEFAULT_LOGFILE   = 'extractor.log'
+'''Default log file.'''
+
+
+# Main body.
+# .............................................................................
+
+@plac.annotations(
+    key        = ('crypto key (required)',              'option', 'k'),
+    logfile    = ('log file',                           'option', 'l'),
+    loglevel   = ('log level: "debug" or "info"',       'option', 'L'),
+    port       = ('port to listen on',                  'option', 'p'),
+    root       = ('root directory of repositories',     'option', 'r'),
+    foreground = ('stay in foreground',                 'flag',   'f'),
+)
+
+def main(key=None, logfile=None, loglevel=None,
+         port=None, root=None, foreground=False):
+    '''Start the Extractor server.
+
+This is meant to be run on a server computer that contains clones of source
+code repositories on the file system.  It provides a network API using Pyro4
+that allows other processes to extract features from the source code.  The
+option `-k` is required and must be a cryptographic key (a text string) used
+to secure the Pyro4 connection.  Basic usage:
+
+    extractor-server -k textstring -r /path/to/downloads/root -p number
+
+If `-p` is not given, this uses a default port number.  If `-r` is not given,
+this uses a default root directory.  Each repository copy is assumed to be
+named according to the hierarchically-structured scheme used by CASICS.
+The directory tree used to store repositories is hierarchically structured in
+such a way that the number of individual directories at each level is limited
+to a small number.  This prevents problems that very large numbers of
+directories can cause to some programs.  GitHub repositories are mapped to this
+tree according to their integer identifiers like this:
+
+    nn/nn/nn/nn
+
+where each `n` is an integer `0`..`9`.  For example, the following are 3
+examples of repository paths stored according this scheme:
+
+    00/00/00/01
+    00/00/00/62
+    00/15/63/99
+
+The full number read left to right (without the slashes) is the identifier
+of the repository (which is the same as the database key in our database).
+The numbers are zero-padded.
+'''
+
+    # Check arguments.
+    if not key:
+        raise SystemExit('Must provide a crypto key.')
+    if not port:
+        port = _DEFAULT_PORT
+    if not logfile:
+        logfile= _DEFAULT_LOGFILE
+    if not root:
+        root = _DEFAULT_REPO_ROOT
+    if not os.path.isdir(root):
+        raise SystemExit('Cannot find root dir {}'.format(root))
+
+    log = Logger('Pyro4', logfile, console=foreground).get_log()
+    if loglevel:
+        log.set_level(loglevel)
+    log.debug('main: root = {}, logfile = {}, key = {}, port = {}'
+              .format(root, logfile, key, port))
+
+    host = socket.getfqdn()
+    try:
+        port = int(port)
+        if not (0 < port < 65536):
+            raise ValueError()
+    except ValueError:
+        log.fail('Port number must be an integer between 1 and 65535')
+
+    log = Logger('Pyro4').get_log()
+    log.info('Running server on host {}'.format(host))
+    log.info('Using port number {}'.format(port))
+    log.info('Using root of repos: {}'.format(root))
+    if not foreground:
+        pid = os.fork()
+        setproctitle.setproctitle(os.path.realpath(__file__))
+        if pid != 0:
+            log.info('Forked Extractor daemon as process {}'.format(pid))
+            sys.exit()
+        os.setsid()
+    Pyro4.config.DETAILED_TRACEBACK = True
+    Pyro4.config.COMMTIMEOUT = 0.0
+    Pyro4.config.MAX_RETRIES = 10
+    with Pyro4.Daemon(host=host, port=port) as daemon:
+        hmac = str.encode(key)          # Convert to bytes
+        daemon._pyroHmacKey = hmac
+        handler = ExtractorServer(daemon, host, port, root, log)
+        uri = daemon.register(handler, 'extractor')
+        log.info('-'*60)
+        log.info('Daemon running with URI = {}'.format(uri))
+        log.info('-'*60)
+        sys.stdout = log.log_stream()
+        daemon.requestLoop()
+    log.info('Exiting.')
+
+
+@Pyro4.expose
+class ExtractorServer(object):
+    def __init__(self, daemon, host, port, repo_root, logger):
+        self._daemon   = daemon
+        self._host     = host
+        self._port     = port
+        self._root_dir = repo_root
+        self._log      = logger
+
+
+    def _log_action(self, msg):
+        self._log.info('INVOKED: ' + msg)
+
+
+    def shutdown(self):
+        self._log_action('shutdown')
+        self._daemon.shutdown()
+
+
+    def get_status(self):
+        self._log_action('get_status')
+        msg = 'host = {}, port = {}, root = {}'.format(
+            self._host, self._port, self._root_dir)
+        return(msg)
+
+
+    def get_repo_path(self, id):
+        self._log_action('get_repo_path({})'.format(id))
+        return generate_path(self._root_dir, id)
+
+
+    def get_elements(self, id, recache=False):
+        self._log_action('get_elements({}, recache={})'.format(id, recache))
+        if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
+            path = generate_path(self._root_dir, id)
+        elif isinstance(id, str):
+            path = os.path.join(self._root_dir, id)
+        else:
+            self._log.error('Arg must be an int or a string: {}'.format(id))
+            raise ValueError('Arg must be an int or a string: {}'.format(id))
+        return dir_elements(path, recache)
+
+
+    def get_words(self, id, filetype='all', recache=False):
+        self._log_action('get_words({}, filetype="{}", recache={})'
+                         .format(id, filetype, recache))
+        elements = self.get_elements(id, recache)
+        return all_words(elements, filetype, recache)
+
+
+    def get_identifiers(self, id, recache=False):
+        self._log_action('get_identifiers({}, recache={})'.format(id, recache))
+        elements = self.get_elements(id, recache)
+        return all_identifiers(elements, recache)
+
+
+# Start the user interface.
+# .............................................................................
+
+if __name__ == '__main__':
+    plac.call(main)
+
+
+# For Emacs users
+# ......................................................................
+# Local Variables:
+# mode: python
+# python-indent-offset: 4
+# End:

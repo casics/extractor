@@ -1,21 +1,86 @@
 #!/usr/bin/env python3
 # =============================================================================
 # @file    extractor
-# @brief   Extract things from source code
+# @brief   Interactive interface for testing the CASICS Extractor
 # @author  Michael Hucka <mhucka@caltech.edu>
 # @license Please see the file named LICENSE in the project directory
 # @website https://github.com/casics/extractor
 #
-# This module contacts the CASICS server to get information about one or more
-# specified repositories, then downloads a copy of those repositories to the
-# local file system.
+# This provides an interactive command-line interface for communicating with
+# the CASICS Extractor.  This is useful for testing and experimenting.
 # =============================================================================
 
-# Allow this program to be executed directly from the 'bin' directory.
 import os
 import sys
+import IPython
+import logging
+import plac
+
+# Allow this program to be executed directly from the 'bin' directory.
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-# Hand over to the command line interface.
+from common.logger import *
 from extractor import *
-plac.call(main)
+
+
+# Main body.
+# .............................................................................
+
+@plac.annotations(
+    key      = ('crypto key (required)',              'option', 'k'),
+    uri      = ('URI of Extractor server (required)', 'option', 'u'),
+    logfile  = ('log file',                           'option', 'l'),
+    loglevel = ('log level: "debug" or "info"',       'option', 'L'),
+)
+
+def main(key=None, logfile=None, loglevel=None, uri=None):
+    '''Interact with the CASICS Extractor.
+
+This is a simple interactive command-line interface for testing the CASICS
+Extractor using the network API.  The option `-k` is required and must be a
+cryptographic key (a text string) used to secure the Pyro4 connection.  The
+option `-u` is also required and must be the URI of the Extractor server
+process.
+'''
+    # Check arguments.
+    if not key:
+        raise SystemExit('Must provide a crypto key.')
+    if not uri:
+        raise SystemExit('Must provide a URI for the Extractor server')
+
+    # Configure logging.
+    log = Logger(file=logfile, console=True).get_log()
+    if loglevel:
+        log.set_level(loglevel)
+    log.debug('main: logfile = {}, key = {}, uri = {}' .format(logfile, key, uri))
+    log.info('Running as client with URI {}'.format(uri))
+
+    # Connect to the server.
+    hmac = str.encode(key)              # Convert to bytes
+    extractor = Extractor(uri, hmac)
+
+    # Drop into REPL and let the user do interact with the remote server.
+    banner = '''Available commands:
+    extractor.get_status()
+    extractor.get_repo_path(id)
+    extractor.get_elements(id)
+    extractor.get_words(id, filetype='all', recache=False)
+    extractor.get_identifiers(id, recache=False)
+'''
+    IPython.embed(banner1=banner)
+    log.info('Exiting.')
+
+
+# Start the user interface.
+# .............................................................................
+
+if __name__ == '__main__':
+    plac.call(main)
+
+
+# For Emacs users
+# ......................................................................
+# Local Variables:
+# mode: python
+# python-indent-offset: 4
+# End:
