@@ -40,23 +40,6 @@ from   nltk.tokenize.api import TokenizerI
 import nltk.data
 import unicodedata
 
-sys.path.append('../database')
-sys.path.append('../detector')
-sys.path.append('../cataloguer')
-sys.path.append('../common')
-sys.path.append('../splitters')
-sys.path.append('../nonsense')
-
-from utils import *
-
-import constants
-from   content_inferencer import *
-from   human_language import *
-from   logger import *
-from   dir_parser import *
-from   simple_splitters import *
-from   samurai import samurai_split
-
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
 
