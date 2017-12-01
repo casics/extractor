@@ -20,7 +20,8 @@ import plac
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from common.logger import *
-from extractor import *
+from extractor.extractor import *
+from extractor.text_extractor import *
 
 
 # Main body.
