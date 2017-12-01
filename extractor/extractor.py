@@ -27,6 +27,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from common.messages import *
 from common.logger import *
+from .text_extractor import *
 
 # The following sets up Pyro4 to print full traces when exceptions occur.
 # See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version

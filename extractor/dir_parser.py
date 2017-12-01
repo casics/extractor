@@ -158,8 +158,17 @@ from   tokenize import tokenize, COMMENT, STRING, NAME
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from common.messages import *
+from codeornot import human_language, code_filename, noncode_filename
+
+from common.cache import *
 from common.logger import *
+from common.messages import *
+from common.path import *
+
+from .text_extractor import extract_text
+from .file_parser import file_elements
+from . import constants
+from .constants import *
 
 
 # Constants for this module.
@@ -174,9 +183,6 @@ _extreme_max_file_size = 5*1024*1024
 # .............................................................................
 
 def dir_elements(path, recache=False):
-    from text_extractor import extract_text
-    from file_parser import file_elements
-
     def wrapper_dict(path, elements):
         return {'full_path': path, 'elements': elements}
 
@@ -213,9 +219,6 @@ def dir_elements(path, recache=False):
 
 
 def dir_elements_recursive(path):
-    from text_extractor import extract_text
-    from file_parser import file_elements
-
     def file_dict(filename, elements, code_lang, text_lang, explicit_status=None):
         if explicit_status:
             status = explicit_status
@@ -263,7 +266,7 @@ def dir_elements_recursive(path):
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
-            elif is_code_file(file):
+            elif code_filename(file):
                 log.debug('skipping currently unhandled code file: {}'.format(file))
                 contents.append(file_dict(file, None, None, None, 'unsupported'))
                 continue
@@ -317,7 +320,7 @@ def python_file(filename):
     if ext == '':
         # No extension, but might still be a python file.
         try:
-            return 'Python' in file_magic(filename)
+            return 'Python' in magic.from_file(filename)
         except Exception as e:
             log = Logger().get_log()
             log.error('unable to check if {} is a Python file: {}'.format(filename, e))
@@ -342,7 +345,7 @@ def document_file(filename):
         or ext in constants.common_text_markup_extensions
         or ext in constants.convertible_document_extensions):
         return True
-    elif not is_code_file(filename):
+    elif not code_filename(filename):
         return probably_text(filename)
     else:
         return False
@@ -350,7 +353,7 @@ def document_file(filename):
 
 def probably_text(filename):
     try:
-        return 'text' in file_magic(filename)
+        return 'text' in magic.from_file(filename)
     except Exception as e:
         log = Logger().get_log()
         log.error('error trying to get magic for {}'.format(filename))
@@ -373,8 +376,6 @@ def elements_text_language(elements):
 
 # Quick test driver.
 # .............................................................................
-
-import plac
 
 def run_dir_parser(debug=False, ppr=False, loglevel='debug', recache=False, *file):
     '''Test dir_parser.py.'''

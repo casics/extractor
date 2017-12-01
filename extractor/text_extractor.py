@@ -43,6 +43,13 @@ import unicodedata
 if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
 
+from codeornot import human_language
+from cloison import simple_split
+
+from common.cache import *
+from . import constants
+from .constants import *
+
 
 # Main functions
 # .............................................................................
