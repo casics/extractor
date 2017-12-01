@@ -12,14 +12,20 @@
 
 # Allow this program to be executed directly from the 'bin' directory.
 import os
-import sys
 import plac
 import Pyro4
+import setproctitle
+import socket
+import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from common.logger import *
-from extractor import *
+from common.messages import *
+from common.path import *
+from extractor.extractor import *
+from extractor.text_extractor import *
+from extractor.dir_parser import *
 
 # The following sets up Pyro4 to print full traces when exceptions occur.
 # See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version
@@ -47,14 +53,15 @@ _DEFAULT_LOGFILE   = 'extractor.log'
     key        = ('crypto key (required)',              'option', 'k'),
     logfile    = ('log file',                           'option', 'l'),
     loglevel   = ('log level: "debug" or "info"',       'option', 'L'),
+    host       = ('explicit host name for this host',   'option', 'H'),
     port       = ('port to listen on',                  'option', 'p'),
     root       = ('root directory of repositories',     'option', 'r'),
     foreground = ('stay in foreground',                 'flag',   'f'),
 )
 
-def main(key=None, logfile=None, loglevel=None,
-         port=None, root=None, foreground=False):
-    '''Start the Extractor server.
+def main(key=None, root=None, host=None, logfile=None, loglevel=None,
+         port=None, foreground=False):
+    '''Start the CASICS Extractor server.
 
 This is meant to be run on a server computer that contains clones of source
 code repositories on the file system.  It provides a network API using Pyro4
@@ -89,7 +96,7 @@ The numbers are zero-padded.
 
     # Check arguments.
     if not key:
-        raise SystemExit('Must provide a crypto key.')
+        raise SystemExit(colorcode('Must provide a crypto key.', 'error'))
     if not port:
         port = _DEFAULT_PORT
     if not logfile:
@@ -97,7 +104,13 @@ The numbers are zero-padded.
     if not root:
         root = _DEFAULT_REPO_ROOT
     if not os.path.isdir(root):
-        raise SystemExit('Cannot find root dir {}'.format(root))
+        raise SystemExit(colorcode('Cannot find root dir {}'.format(root), 'error'))
+    if not host:
+        host = socket.getfqdn()
+        if host.find('in-addr.arpa'):
+            msg('Hostnames of the form {} tend to cause failures'.format(host), 'warning')
+            msg('Suspect this if you get cryptic error from Pyro4.', 'warning')
+            msg('Hint: set hostname explicitly using -o', 'warning')
 
     log = Logger('Pyro4', logfile, console=foreground).get_log()
     if loglevel:
@@ -105,7 +118,6 @@ The numbers are zero-padded.
     log.debug('main: root = {}, logfile = {}, key = {}, port = {}'
               .format(root, logfile, key, port))
 
-    host = socket.getfqdn()
     try:
         port = int(port)
         if not (0 < port < 65536):
@@ -113,7 +125,6 @@ The numbers are zero-padded.
     except ValueError:
         log.fail('Port number must be an integer between 1 and 65535')
 
-    log = Logger('Pyro4').get_log()
     log.info('Running server on host {}'.format(host))
     log.info('Using port number {}'.format(port))
     log.info('Using root of repos: {}'.format(root))
