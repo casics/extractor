@@ -26,7 +26,6 @@ import nltk
 import operator
 import os
 import plac
-import pprint
 import re
 import subprocess
 import sys
@@ -41,14 +40,20 @@ import nltk.data
 import unicodedata
 
 if not os.environ.get('NTLK_DATA'):
-    nltk.data.path.append('../../other/nltk/3.2.2/nltk_data/')
+    nltk.data.path.append('../nltk_data/')
 
 from codeornot import human_language
-from cloison import simple_split
+from cloison import simple_split, safe_camelcase_split
+
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+except:
+    sys.path.append("..")
 
 from common.cache import *
-from . import constants
-from .constants import *
+from common.data_helpers import *
+from common.system import *
+from extractor.constants import *
 
 
 # Main functions
@@ -60,7 +65,7 @@ def extract_text(filename, encoding='utf-8', retried=False):
     log = Logger().get_log()
     try:
         with open(filename, 'r', encoding=encoding, errors='replace') as file:
-            if ext in constants.common_puretext_extensions:
+            if ext in common_puretext_extensions:
                 log.info('extracting text from pure text file {}'.format(filename))
                 return clean_plain_text(file.read())
             elif ext in ['.md', '.markdown', '.mdwn', '.mkdn', '.mdown']:
@@ -219,9 +224,9 @@ _max_word_length   = 80
 # available on 2017-02-06.  An archived copy of that page is available in the
 # Internet Archive and http://archive.is.
 
-# FIXME: handling case sensitivity this way is stupid. Should avoid the
-# tests here and instead use code to fix up the case of the match, like what
-# they do in http://www.clips.uantwerpen.be/BiographTA/tokenizer.py
+# FIXME: handling case sensitivity the way it's done below is stupid. Should
+# avoid the tests here and instead use code to fix up the case of the match,
+# like what they do in http://www.clips.uantwerpen.be/BiographTA/tokenizer.py
 
 _common_contractions = [
     (r"Ain[’']t"                                             , 'Is not'),
@@ -318,7 +323,7 @@ def tokenize_text(seq):
     # Compress multiple blank lines into one.
     text = re.sub(r'\n+', '\n', text)
     # Remove URLs.
-    text = re.sub(constants.url_compiled_regex, '', text)
+    text = re.sub(url_compiled_regex, '', text)
     # Split words at certain characters that are not used in normal writing.
     text = str.translate(text, _odd_char_splitter)
     # Split the text into sentences.
@@ -570,8 +575,8 @@ def extract_text_words(body):
     '''
     words = flatten(tokenize_text(body))
     # Remove words that are URLs.
-    words = [w for w in words if not re.search(constants.url_compiled_regex, w)]
-    words = [w for w in words if not re.search(constants.mail_compiled_regex, w)]
+    words = [w for w in words if not re.search(url_compiled_regex, w)]
+    words = [w for w in words if not re.search(mail_compiled_regex, w)]
     # Remove / from paths to leave individual words: /usr/bin -> usr bin
     # Also split words at hyphens and other delimiters while we're at it.
     # Also split words at numbers, e.g., "rtf2html" -> "rtf", "html".
@@ -760,8 +765,8 @@ def convert_html(html):
 
     # Strip out all URLs anywhere.
     # 2017-01-23 Currently think this better be done while tokenizing sentences
-    # for el in soup.find_all(string=constants.url_compiled_regex):
-    #     el.string.replace_with(re.sub(constants.url_compiled_regex, '.', el.string))
+    # for el in soup.find_all(string=url_compiled_regex):
+    #     el.string.replace_with(re.sub(url_compiled_regex, '.', el.string))
 
     # Return a single text string.
     return unsoupify(soup)
@@ -797,7 +802,7 @@ def tabulate_frequencies(freq, format='plain'):
 
 
 def ignorable_filename(name):
-    return any(fnmatch(name, pat) for pat in constants.common_ignorable_files)
+    return any(fnmatch(name, pat) for pat in common_ignorable_files)
 
 
 # Quick test interface.
@@ -806,6 +811,9 @@ def ignorable_filename(name):
 def run_text_extractor(debug=False, ppr=False, loglevel='info',
                        recache=False, *input):
     '''Test word_extractor.py.'''
+    import dir_parser
+    import pprint
+
     if len(input) < 1:
         raise SystemExit('Need an argument')
     log = Logger(os.path.splitext(sys.argv[0])[0], console=True).get_log()
@@ -814,9 +822,9 @@ def run_text_extractor(debug=False, ppr=False, loglevel='info',
     if not os.path.exists(target):
         raise ValueError('{} not found'.format(target))
     log.info('Running dir_elements')
-    e = dir_elements(target, recache=recache)
+    e = dir_parser.dir_elements(target, recache=recache)
     # log.info('Running all_words')
-    # w = all_words(e, recache=recache)
+    w = all_words(e, recache=recache)
     log.info('Running all_identifiers')
     i = all_identifiers(e, recache=recache)
     if debug:
