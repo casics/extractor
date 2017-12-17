@@ -106,7 +106,7 @@ The numbers are zero-padded.
         raise SystemExit(colorcode('Cannot find root dir {}'.format(root), 'error'))
     if not host:
         host = socket.getfqdn()
-        if host.find('in-addr.arpa'):
+        if host.find('in-addr.arpa') > 0:
             msg('Hostnames of the form {} tend to cause failures'.format(host), 'warning')
             msg('Suspect this if you get cryptic error from Pyro4.', 'warning')
             msg('Hint: set hostname explicitly using -o', 'warning')
