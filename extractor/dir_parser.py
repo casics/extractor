@@ -326,7 +326,7 @@ def python_file(filename):
     if ext == '':
         # No extension, but might still be a python file.
         try:
-            return 'Python' in magic.from_file(filename).decode()
+            return 'Python' in file_magic(filename)
         except Exception as e:
             log = Logger().get_log()
             log.error('unable to check if {} is a Python file: {}'.format(filename, e))
@@ -359,7 +359,7 @@ def document_file(filename):
 
 def probably_text(filename):
     try:
-        return 'text' in magic.from_file(filename).decode()
+        return 'text' in file_magic(filename)
     except Exception as e:
         log = Logger().get_log()
         log.error('error trying to get magic for {}'.format(filename))
@@ -378,6 +378,13 @@ def elements_text_language(elements):
         return 'en'
     else:
         return majority_language(header + comments + strings)
+
+
+def file_magic(filename):
+    # I don't know what's going on but magic.from_file() returns a byte array
+    # on some systems and a string on others.
+    code = magic.from_file(filename)
+    return code if isinstance(code, str) else code.decode()
 
 
 # Quick test driver.
