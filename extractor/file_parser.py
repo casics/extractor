@@ -24,6 +24,15 @@ import tempfile
 import token
 from   tokenize import *
 
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+except:
+    sys.path.append("..")
+
+from common.logger import *
+from common.system import *
+from extractor.text_extractor import *
+
 
 # Global configuration constants.
 # .............................................................................
@@ -32,6 +41,8 @@ from   tokenize import *
 # recursion depth limit, e.g., when a file contains a long list of strings.
 
 sys.setrecursionlimit(3000)
+
+# Behavioral flags
 
 # Lot of things just don't look very interesting if they're too short.
 # The next set of constants sets some thresholds.
@@ -82,7 +93,10 @@ _ignorable_names = [
     '__code__', '__globals__', '__dict__', '__closure__', '__annotations__',
     '__kwdefaults__', '__self__', '__func__', '__instancecheck__',
     '__subclasscheck__', 'metaclass',
+]
 
+# Additional Python smbols that may or may not be important to filter out.
+_common_python_names = [
     # Common Python built-in functions.
     # See https://docs.python.org/3/library/functions.html
     'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
@@ -113,7 +127,7 @@ _ignorable_names = [
 class ElementCollector(ast.NodeVisitor):
     '''AST node visitor for creating lists of elements that we care about.'''
 
-    def __init__(self):
+    def __init__(self, filtering_level='normal'):
         self.imports    = []
         self.classes    = []
         self.functions  = []
@@ -124,9 +138,29 @@ class ElementCollector(ast.NodeVisitor):
         self.calls      = []
         self._current_class    = None
         self._current_function = None
+        if 'normal' in filtering_level:
+            self.ignorable_name = self.ignorable_name_normal
+        else:
+            self.ignorable_name = self.ignorable_name_minimal
+
 
     def operation_on_variable(self, name):
         return any(name in x for x in self.variables)
+
+
+    def ignorable_string(self, thing):
+        # Only store long strings with at least one space in them,
+        # in the hope that they're useful messages
+        return len(thing) < _min_string_len
+
+
+    def ignorable_name_minimal(self, thing):
+        return len(thing) < _min_name_len or thing in _ignorable_names
+
+
+    def ignorable_name_normal(self, thing):
+        return (len(thing) < _min_name_len or thing in _ignorable_names
+                or thing in _common_python_names)
 
 
     def generic_visit(self, node):
@@ -134,7 +168,7 @@ class ElementCollector(ast.NodeVisitor):
 
 
     def visit_Str(self, node):
-        if not ignorable_string(node.s):
+        if not self.ignorable_string(node.s):
             self.strings.append(node.s)
 
 
@@ -149,7 +183,7 @@ class ElementCollector(ast.NodeVisitor):
             name_visitor = NameVisitor()
             name_visitor.visit(thing)
             name = name_visitor.name
-            if not ignorable_name(name):
+            if not self.ignorable_name(name):
                 path = []
                 if self._current_function:
                     path.append(self._current_function)
@@ -169,7 +203,7 @@ class ElementCollector(ast.NodeVisitor):
         def iterate_tuples(tuple):
             for var in tuple:
                 if hasattr(var, 'id'):
-                    if not ignorable_name(var.id):
+                    if not self.ignorable_name(var.id):
                         self.variables.append(var.id)
                 elif isinstance(var, ast.Tuple):
                     iterate_tuples(var.elts)
@@ -177,7 +211,7 @@ class ElementCollector(ast.NodeVisitor):
                     self.visit(var)
 
         if isinstance(node.target, ast.Name):
-            if not ignorable_name(node.target.id):
+            if not self.ignorable_name(node.target.id):
                 self.variables.append(node.target.id)
         elif isinstance(node.target, ast.Tuple):
             iterate_tuples(node.target.elts)
@@ -191,13 +225,13 @@ class ElementCollector(ast.NodeVisitor):
     def visit_Call(self, node):
         callvisitor = NameVisitor()
         callvisitor.visit(node.func)
-        if not ignorable_name(callvisitor.name):
+        if not self.ignorable_name(callvisitor.name):
             self.calls.append(callvisitor.name)
         for thing in node.args:
             self.visit(thing)
         for thing in node.keywords:
             name = thing.arg
-            if not ignorable_name(name):
+            if not self.ignorable_name(name):
                 path = []
                 if self._current_function:
                     path.append(self._current_function)
@@ -211,7 +245,7 @@ class ElementCollector(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node):
         func_name = None
-        if not ignorable_name(node.name):
+        if not self.ignorable_name(node.name):
             path = []
             if self._current_function:
                 path.append(self._current_function)
@@ -222,7 +256,7 @@ class ElementCollector(ast.NodeVisitor):
             self.functions.append(func_name)
         # Treat function parameter names as vars.
         for arg in node.args.args:
-            if not ignorable_name(arg.arg):
+            if not self.ignorable_name(arg.arg):
                 # Do the same trick with the names as we do for other vars.
                 path = []
                 if func_name:
@@ -290,7 +324,7 @@ class ElementCollector(ast.NodeVisitor):
 
     def visit_ClassDef(self, node):
         class_name = None
-        if not ignorable_name(node.name):
+        if not self.ignorable_name(node.name):
             path = []
             if self._current_function:
                 path.append(self._current_function)
@@ -378,16 +412,6 @@ def ignorable_comment(thing):
              or re.match(_vim_comment, thing)
              or re.match(_emacs_comment, thing)
              or re.match(_hashbang_comment, thing)))
-
-
-def ignorable_string(thing):
-    # Only store long strings with at least one space in them,
-    # in the hope that they're useful messages
-    return len(thing) < _min_string_len
-
-
-def ignorable_name(thing):
-    return len(thing) < _min_name_len or thing in _ignorable_names
 
 
 def strip_comment_char(text):
@@ -485,9 +509,11 @@ def clean_plain_text_list(text):
 # comments inside the file, we use the Python 'tokenize' package in a separate
 # pass.
 
-def file_elements(filename):
-    '''Take a Python file, return a tuple of contents.'''
-
+def file_elements(filename, filtering='normal'):
+    '''Take a Python file, return a tuple of contents.
+    Argument 'filterint' determines how much filtering is applied to symbols
+    that may be uninteresting.  Possible values are 'minimal' or 'normal'.
+    '''
     header    = ''
     comments  = []
     tmp_file  = None
@@ -610,6 +636,10 @@ def file_elements(filename):
             (kind, thing, _, _, _) = next(tokens)
         except StopIteration:
             break
+        except Exception:
+            # Unicode decoding problems can cause exceptions.
+            log.error('tokenization failed for {}'.format(full_path))
+            break
 
     # This concludes what we gather without parsing the file into an AST.
     # Store the header and comments, if any.
@@ -638,7 +668,7 @@ def file_elements(filename):
     # We were able to parse the file into an AST.
 
     try:
-        collector = ElementCollector()
+        collector = ElementCollector(filtering)
         collector.visit(tree)
     except Exception as err:
         log.error('internal AST code walking error'.format(full_path))
