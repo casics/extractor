@@ -43,7 +43,6 @@ if not os.environ.get('NTLK_DATA'):
     nltk.data.path.append('../nltk_data/')
 
 from codeornot import human_language
-from cloison import simple_split, safe_camelcase_split
 
 try:
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -54,6 +53,52 @@ from common.cache import *
 from common.data_helpers import *
 from common.system import *
 from extractor.constants import *
+
+
+# From Spiral
+# .............................................................................
+# Temporary copy-paste until I get Spiral into an installable state
+
+_hard_split_chars = '~_.:0123456789'
+_hard_splitter    = str.maketrans(_hard_split_chars, ' '*len(_hard_split_chars))
+_two_capitals     = re.compile(r'[A-Z][A-Z]')
+_camel_case       = re.compile(r'((?<=[a-z])[A-Z])')
+
+def safe_camelcase_split(identifier):
+    '''Split identifiers by forward camel case only, i.e., lower-to-upper case
+    transitions.  This means it will split fooBarBaz into 'foo', 'Bar' and
+    'Baz', but it won't change SQLlite or similar identifiers.  Does not
+    split identifies that have multiple adjacent uppercase letters.'''
+    if re.search(_two_capitals, identifier):
+        return [identifier]
+    return re.sub(_camel_case, r' \1', identifier).split()
+
+def safe_simple_split(identifier):
+    '''Split identifiers by hard delimiters such as underscores, digits, and
+    forward camel case only, i.e., lower-to-upper case transitions.  This
+    means it will split fooBarBaz into 'foo', 'Bar' and 'Baz', and foo2bar
+    into 'foo' and 'bar, but it won't change SQLlite or similar identifiers.
+    Does not split identifies that have multiple adjacent uppercase
+    letters anywhere in them, because doing so is risky if the uppercase
+    letters are not an acronym.  Example: aFastNDecoder -> ['aFastNDecoder'].
+    Contrast this to simple_split('aFastNDecoder'), which will produce
+    ['a', 'Fast', 'NDecoder'] even though "NDecoder" may be more properly split
+    as 'N' 'Decoder'.
+    '''
+    parts = str.translate(identifier, _hard_splitter).split(' ')
+    return list(flatten(safe_camelcase_split(token) for token in parts))
+
+def simple_split(identifier):
+    '''Split identifiers by hard delimiters such as underscores, digits, and
+    forward camel case only, i.e., lower-to-upper case transitions.  This
+    means it will split fooBarBaz into 'foo', 'Bar' and 'Baz', and foo2bar
+    into 'foo' and 'bar, but it won't change SQLlite or similar identifiers.
+    Unlike safe_simple_split(), this will split identifiers that may have
+    sequences of all upper-case letters if there is a lower-to-upper case
+    transition somewhere.  Example: ABCtestSplit -> ['ABCtest', 'Split'].
+    '''
+    parts = str.translate(identifier, _hard_splitter)
+    return re.sub(_camel_case, r' \1', parts).split()
 
 
 # Main functions
