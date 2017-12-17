@@ -146,7 +146,6 @@ import nltk
 import operator
 import os
 import plac
-import pprint
 import pypandoc
 import re
 import sys
@@ -156,19 +155,26 @@ from   time import sleep
 from   timeit import default_timer as timer
 from   tokenize import tokenize, COMMENT, STRING, NAME
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+except:
+    sys.path.append("..")
 
-from codeornot import human_language, code_filename, noncode_filename
+from codeornot import majority_language, human_language, code_filename, noncode_filename
 
 from common.cache import *
 from common.logger import *
 from common.messages import *
 from common.path import *
+from extractor.constants import *
+from extractor.text_extractor import *
+from extractor.file_parser import *
 
-from .text_extractor import extract_text
-from .file_parser import file_elements
-from . import constants
-from .constants import *
+# try:
+#     from text_extractor import extract_text
+#     from constants import *
+# except:
+#     from .constants import *
 
 
 # Constants for this module.
@@ -182,7 +188,7 @@ _extreme_max_file_size = 5*1024*1024
 # Main functions
 # .............................................................................
 
-def dir_elements(path, recache=False):
+def dir_elements(path, recache=False, filtering='normal'):
     def wrapper_dict(path, elements):
         return {'full_path': path, 'elements': elements}
 
@@ -210,7 +216,7 @@ def dir_elements(path, recache=False):
     else:
         log.debug('no cached dir_elements found for {}'.format(full_path))
 
-    elements = dir_elements_recursive(path)
+    elements = dir_elements_recursive(path, filtering)
     wrapper = {'full_path': full_path, 'elements': elements}
 
     log.debug('caching results for {}'.format(full_path))
@@ -218,7 +224,7 @@ def dir_elements(path, recache=False):
     return wrapper
 
 
-def dir_elements_recursive(path):
+def dir_elements_recursive(path, filtering):
     def file_dict(filename, elements, code_lang, text_lang, explicit_status=None):
         if explicit_status:
             status = explicit_status
@@ -262,7 +268,7 @@ def dir_elements_recursive(path):
                 contents.append(file_dict(file, None, None, None, 'ignored'))
                 continue
             elif python_file(file):
-                elements = file_elements(file)
+                elements = file_elements(file, filtering)
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
@@ -283,7 +289,7 @@ def dir_elements_recursive(path):
             if ignorable_dir(dir):
                 log.debug('skipping ignorable directory: {}'.format(dir))
             else:
-                contents.append(dir_elements_recursive(dir))
+                contents.append(dir_elements_recursive(dir, filtering))
 
     log.info('finished traversal of {}'.format(full_path))
     return {'name': path, 'type': 'dir', 'body': contents}
@@ -299,18 +305,18 @@ def empty_file(filename):
 def ignorable_file(filename):
     return (not os.path.isfile(filename)
             or os.path.getsize(filename) > _extreme_max_file_size
-            or any(fnmatch(filename, pat) for pat in constants.common_ignorable_files))
+            or any(fnmatch(filename, pat) for pat in common_ignorable_files))
 
 
 def ignorable_dir(dirname):
-    return any(fnmatch(dirname, pat) for pat in constants.common_ignorable_dirs)
+    return any(fnmatch(dirname, pat) for pat in common_ignorable_dirs)
 
 
 def unhandled_file(filename):
     # Need to lower-case the name in this case, because files like makefiles
     # often vary in case.
     name = filename.lower()
-    return any(fnmatch(name, pat) for pat in constants.common_unhandled_files)
+    return any(fnmatch(name, pat) for pat in common_unhandled_files)
 
 
 def python_file(filename):
@@ -320,7 +326,7 @@ def python_file(filename):
     if ext == '':
         # No extension, but might still be a python file.
         try:
-            return 'Python' in magic.from_file(filename)
+            return 'Python' in magic.from_file(filename).decode()
         except Exception as e:
             log = Logger().get_log()
             log.error('unable to check if {} is a Python file: {}'.format(filename, e))
@@ -341,9 +347,9 @@ def document_file(filename):
     if readme_file(filename):
         return True
     name, ext = os.path.splitext(filename.lower())
-    if (ext in constants.common_puretext_extensions
-        or ext in constants.common_text_markup_extensions
-        or ext in constants.convertible_document_extensions):
+    if (ext in common_puretext_extensions
+        or ext in common_text_markup_extensions
+        or ext in convertible_document_extensions):
         return True
     elif not code_filename(filename):
         return probably_text(filename)
@@ -353,7 +359,7 @@ def document_file(filename):
 
 def probably_text(filename):
     try:
-        return 'text' in magic.from_file(filename)
+        return 'text' in magic.from_file(filename).decode()
     except Exception as e:
         log = Logger().get_log()
         log.error('error trying to get magic for {}'.format(filename))
@@ -377,7 +383,8 @@ def elements_text_language(elements):
 # Quick test driver.
 # .............................................................................
 
-def run_dir_parser(debug=False, ppr=False, loglevel='debug', recache=False, *file):
+def run_dir_parser(debug=False, ppr=False, loglevel='debug', 
+                   recache=False, filtering='normal', *file):
     '''Test dir_parser.py.'''
     if len(file) < 1:
         raise SystemExit('Need a directory as argument')
@@ -389,7 +396,7 @@ def run_dir_parser(debug=False, ppr=False, loglevel='debug', recache=False, *fil
     filename = file[0]
     if not os.path.exists(filename):
         raise ValueError('Directory {} not found'.format(filename))
-    e = dir_elements(filename, recache)
+    e = dir_elements(filename, recache, filtering)
     if debug:
         import ipdb; ipdb.set_trace()
     if ppr:
@@ -399,11 +406,12 @@ def run_dir_parser(debug=False, ppr=False, loglevel='debug', recache=False, *fil
         msg(e)
 
 run_dir_parser.__annotations__ = dict(
-    debug    = ('drop into ipdb after parsing',     'flag',   'd'),
-    ppr      = ('use pprint to print result',       'flag',   'p'),
-    loglevel = ('logging level: "debug" or "info"', 'option', 'L'),
-    recache  = ('invalidate the cache',             'flag',   'r'),
-    file     = 'directory to parse',
+    debug     = ('drop into ipdb after parsing',           'flag',   'd'),
+    filtering = ('level of filtering (normal or minimal)', 'option', 'f'),
+    ppr       = ('use pprint to print result',             'flag',   'p'),
+    loglevel  = ('logging level: "debug" or "info"',       'option', 'L'),
+    recache   = ('invalidate the cache',                   'flag',   'r'),
+    file      = 'directory to parse',
 )
 
 if __name__ == '__main__':
