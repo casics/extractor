@@ -23,16 +23,12 @@ import sys
 from   time import sleep
 from   timeit import default_timer as timer
 
-sys.path.append('../database')
-sys.path.append('../common')
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+except:
+    sys.path.append("..")
 
-from casicsdb import *
-from utils import *
-from file_parser import file_elements
-from dir_parser import dir_elements
-from logger import *
-from text_extractor import *
-from extractor import Extractor
+from extractor_client import *
 
 
 def word_frequencies_for_repos(repo_ids, lang, uri, key,
