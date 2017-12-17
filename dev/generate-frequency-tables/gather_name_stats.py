@@ -197,7 +197,7 @@ def run(key=None, uri=None, recache=False, *file):
     with open(filename) as f:
         id_list = f.read().splitlines()
 
-    log.info('Running word_statistics')
+    log.info('Gathering name frequencies')
     freq = gather_name_frequencies(id_list, 'Python', uri, key, recache, log)
     print(tabulate_frequencies(freq))
 
