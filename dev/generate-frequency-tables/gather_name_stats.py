@@ -65,8 +65,10 @@ from   timeit import default_timer as timer
 
 try:
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 except:
     sys.path.append("..")
+    sys.path.append("../..")
 
 from extractor_client import *
 from common.data_helpers import flatten
