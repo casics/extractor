@@ -17,7 +17,10 @@ import logging
 import plac
 
 # Allow this program to be executed directly from the 'bin' directory.
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+except:
+    sys.path.append("..")
 
 from common.logger import *
 from extractor.extractor import *
@@ -27,6 +30,8 @@ from extractor.text_extractor import *
 # Main body.
 # .............................................................................
 
+# Argument annotations are: (help, kind, abbrev, type, choices, metavar)
+# Plac automatically adds a -h argument for help, so no need to do it here.
 @plac.annotations(
     key      = ('crypto key (required)',              'option', 'k'),
     uri      = ('URI of Extractor server (required)', 'option', 'u'),
@@ -59,12 +64,13 @@ process.
     # Connect to the server.
     hmac = str.encode(key)              # Convert to bytes
     extractor = Extractor(uri, hmac)
+    e = extractor                       # Shortcut
 
     # Drop into REPL and let the user do interact with the remote server.
     banner = '''Available commands:
     extractor.get_status()
     extractor.get_repo_path(id)
-    extractor.get_elements(id)
+    extractor.get_elements(id, recache=False, filtering='normal')
     extractor.get_words(id, filetype='all', recache=False)
     extractor.get_identifiers(id, recache=False)
 '''
