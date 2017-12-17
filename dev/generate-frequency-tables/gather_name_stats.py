@@ -70,7 +70,7 @@ except:
     sys.path.append("..")
     sys.path.append("../..")
 
-from extractor_client import *
+from extractor.extractor_client import *
 from common.data_helpers import flatten
 
 
