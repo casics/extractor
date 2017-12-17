@@ -18,7 +18,6 @@ import html2text
 import locale
 import io
 import keyword
-import magic
 import markdown
 import math
 from   multiprocessing import Process, Manager
