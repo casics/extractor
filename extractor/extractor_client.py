@@ -1,7 +1,7 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python3
 #
 # @file    extractor.py
-# @brief   Network server for returning parsed contents of repositories
+# @brief   Network client for returning parsed contents of repositories
 # @author  Michael Hucka
 #
 # <!---------------------------------------------------------------------------
@@ -23,11 +23,14 @@ import sys
 from   time import sleep
 from   timeit import default_timer as timer
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+except:
+    sys.path.append("..")
 
 from common.messages import *
 from common.logger import *
-from .text_extractor import *
+from extractor import *
 
 # The following sets up Pyro4 to print full traces when exceptions occur.
 # See https://pythonhosted.org/Pyro4/tutorials.html#phase-3-final-pyro-version
@@ -80,10 +83,10 @@ class Extractor(object):
             return ''
 
 
-    def get_elements(self, id, recache=False):
+    def get_elements(self, id, recache=False, filtering='normal'):
         self._sanity_check_id(id)
         try:
-            return self._extractor.get_elements(id, recache)
+            return self._extractor.get_elements(id, recache, filtering)
         except Pyro4.errors.ConnectionClosedError:
             # Network connection lost.
             self._log.error('Network connection lost: {}'.format(err))
