@@ -23,7 +23,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.logger import *
 from common.messages import *
 from common.path import *
-from extractor.extractor import *
 from extractor.text_extractor import *
 from extractor.dir_parser import *
 
@@ -182,8 +181,9 @@ class ExtractorServer(object):
         return generate_path(self._root_dir, id)
 
 
-    def get_elements(self, id, recache=False):
-        self._log_action('get_elements({}, recache={})'.format(id, recache))
+    def get_elements(self, id, recache=False, filtering='normal'):
+        self._log_action('get_elements({}, recache={}, filtering={})'
+                         .format(id, recache, filtering))
         if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
             path = generate_path(self._root_dir, id)
         elif isinstance(id, str):
@@ -191,19 +191,20 @@ class ExtractorServer(object):
         else:
             self._log.error('Arg must be an int or a string: {}'.format(id))
             raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return dir_elements(path, recache)
+        return dir_elements(path, recache, filtering)
 
 
-    def get_words(self, id, filetype='all', recache=False):
-        self._log_action('get_words({}, filetype="{}", recache={})'
-                         .format(id, filetype, recache))
-        elements = self.get_elements(id, recache)
+    def get_words(self, id, filetype='all', recache=False, filtering='normal'):
+        self._log_action('get_words({}, filetype="{}", recache={}, filtering={})'
+                         .format(id, filetype, recache, filtering))
+        elements = self.get_elements(id, recache, filtering)
         return all_words(elements, filetype, recache)
 
 
     def get_identifiers(self, id, recache=False):
-        self._log_action('get_identifiers({}, recache={})'.format(id, recache))
-        elements = self.get_elements(id, recache)
+        self._log_action('get_identifiers({}, recache={}, filtering={})'
+                         .format(id, recache))
+        elements = self.get_elements(id, recache, filtering='normal')
         return all_identifiers(elements, recache)
 
 
