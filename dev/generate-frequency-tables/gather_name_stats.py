@@ -139,6 +139,8 @@ def gather_name_frequencies(repo_ids, lang, uri, key, recache, log):
             # Take every symbol and do a safe split, and merge the result.
             expanded = []
             for name in names_in_repo:
+                if not name:
+                    continue
                 expanded += safe_simple_split(name)
             for name in expanded:
                 length = len(name)
