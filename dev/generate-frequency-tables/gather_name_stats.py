@@ -142,7 +142,10 @@ def gather_name_frequencies(repo_ids, lang, uri, key, recache, log):
                 if not name:
                     continue
                 expanded += safe_simple_split(name)
+            # Count up the number of times each symbol component appears.
             for name in expanded:
+                # Normalize to pure ASCII.
+                name = name.encode('utf8').decode('ascii', 'ignore')
                 length = len(name)
                 if length >= _min_name_length and length <= _max_name_length:
                     names[name] += 1
