@@ -77,7 +77,12 @@ from common.data_helpers import flatten
 # Global constants
 # .............................................................................
 
+# I tried filtering out single-character tokens, but it appears they may in
+# fact have an effect in Samurai's computations.
 _min_name_length = 1
+
+# There are no normal English words longer than 30 characters, so anything
+# longer is a multiword construct, and we don't want it anyway.
 _max_name_length = 30
 
 
