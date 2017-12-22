@@ -268,7 +268,16 @@ def dir_elements_recursive(path, filtering):
                 contents.append(file_dict(file, None, None, None, 'ignored'))
                 continue
             elif python_file(file):
-                elements = file_elements(file, filtering)
+                if file.endswith('.ipynb'):
+                    with tempfile.NamedTemporaryFile(mode='w') as tfile:
+                        # If the output file name doesn't have a .py extension,
+                        # nbconvert will add one itself, which will lead to
+                        # confusion in our code.  Name it from the start.
+                        tmpfilename = tfile.name + '.py'
+                        ipynb_to_python_file(file, tmpfilename)
+                        elements = file_elements(tmpfilename, filtering)
+                else:
+                    elements = file_elements(file, filtering)
                 lang = elements_text_language(elements)
                 contents.append(file_dict(file, elements, 'Python', lang))
                 continue
@@ -321,7 +330,7 @@ def unhandled_file(filename):
 
 def python_file(filename):
     name, ext = os.path.splitext(filename.lower())
-    if ext in ['.py', '.wsgi']:
+    if ext in ['.py', '.wsgi', '.ipynb']:
         return True
     if ext == '':
         # No extension, but might still be a python file.
@@ -332,6 +341,21 @@ def python_file(filename):
             log.error('unable to check if {} is a Python file: {}'.format(filename, e))
             log.error(e)
     return False
+
+
+def ipynb_to_python_file(infile, outfile, timeout=20):
+    full_path = os.path.join(os.getcwd(), infile)
+    cmd = ['jupyter', 'nbconvert', '--to=python', full_path, '--output', outfile]
+    (status, output, errors) = shell_cmd(cmd, max_time=timeout)
+    if status == 0:
+        return
+    log = Logger().get_log()
+    log.debug(' '.join(cmd))
+    if status == -9:
+        log.error('*** {} killed after {}s timeout'.format(cmd[0], timeout))
+    else:
+        log.error('*** call to {} failed: {}'.format(cmd[0], errors))
+        raise ShellCommandException('{} failed: {}'.format(cmd[0], errors))
 
 
 def excessively_large_file(filename):
