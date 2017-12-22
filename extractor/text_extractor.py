@@ -118,7 +118,7 @@ def extract_text(filename, encoding='utf-8', retried=False):
                 log.info('extracting text from markdown file {}'.format(filename))
                 html = markdown.markdown(file.read(), output_format='html4')
                 return convert_html(html)
-            elif ext.startswith('.htm'):
+            elif ext.startswith('.htm') or ext.startswith('.xht'):
                 log.info('extracting text from HTML file {}'.format(filename))
                 return convert_html(file.read())
             elif ext in ['.asciidoc', '.adoc', '.asc']:
