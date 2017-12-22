@@ -77,7 +77,7 @@ from common.data_helpers import flatten
 # Global constants
 # .............................................................................
 
-_min_name_length = 2
+_min_name_length = 1
 _max_name_length = 30
 
 
