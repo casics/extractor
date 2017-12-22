@@ -355,7 +355,7 @@ def ipynb_to_python_file(infile, outfile, timeout=20):
         log.error('*** {} killed after {}s timeout'.format(cmd[0], timeout))
     else:
         log.error('*** call to {} failed: {}'.format(cmd[0], errors))
-        raise ShellCommandException('{} failed: {}'.format(cmd[0], errors))
+        return
 
 
 def excessively_large_file(filename):
