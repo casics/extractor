@@ -1,13 +1,29 @@
 #!/usr/bin/env python3
 # =============================================================================
 # @file    extractor-server
-# @brief   Server control interface for CASICS Extractor
+# @brief   Server program for CASICS Extractor
 # @author  Michael Hucka <mhucka@caltech.edu>
 # @license Please see the file named LICENSE in the project directory
 # @website https://github.com/casics/extractor
 #
-# This provides an interactive command-line interface for communicating with
-# the CASICS Extractor.  This is useful for testing and experimenting.
+# This is the server program for CASICS Extractor.  It is intended to run
+# on the file server holding copies of the repositories for CASICS.  The first
+# time you try to use this, you may want to run it in the foreground and with
+# the logging level set to "debug":
+#
+#    extractor-server -k somestring -r /path/to/repos -f -L debug
+#
+# In typical usage, it would be started without the -f option, and the log
+# output will be stored in the log file (default name: extractor.log):
+#
+#    extractor-server -k somestring -r /path/to/repos
+#
+# You can do tail -f on extractor.log to watch the output that way.  For more
+# information, please see the doc string for main() below or run
+#
+#    extractor-server -h
+#
+# on the command line.
 # =============================================================================
 
 # Allow this program to be executed directly from the 'bin' directory.
