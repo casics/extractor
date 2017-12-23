@@ -11,6 +11,8 @@
 # =============================================================================
 
 # Allow this program to be executed directly from the 'bin' directory.
+
+from   multiprocessing import Pool
 import os
 import plac
 import Pyro4
@@ -43,6 +45,8 @@ _DEFAULT_REPO_ROOT = '/srv/repositories'
 
 _DEFAULT_LOGFILE   = 'extractor.log'
 '''Default log file.'''
+
+_MAX_THREADS = 10
 
 
 # Main body.
@@ -157,6 +161,7 @@ class ExtractorServer(object):
         self._host     = host
         self._port     = port
         self._root_dir = repo_root
+        self._orig_dir = os.path.abspath(os.getcwd())
         self._log      = logger
 
 
@@ -181,17 +186,46 @@ class ExtractorServer(object):
         return generate_path(self._root_dir, id)
 
 
-    def get_elements(self, id, recache=False, filtering='normal'):
-        self._log_action('get_elements({}, recache={}, filtering={})'
-                         .format(id, recache, filtering))
-        if isinstance(id, int) or (isinstance(id, str) and id.isdigit()):
-            path = generate_path(self._root_dir, id)
-        elif isinstance(id, str):
-            path = os.path.join(self._root_dir, id)
+    def get_elements(self, id_list, recache=False, filtering='normal'):
+        self._log_action('get_elements() called with {} item{}'
+                         .format(len(id_list), 's' if len(id_list) > 1 else ''))
+        # Generate full paths for each thing we're given.
+        paths = []
+        for x in id_list:
+            if x.strip() is '':
+                continue
+            if isinstance(x, int) or (isinstance(x, str) and x.isdigit()):
+                paths.append(generate_path(self._root_dir, x))
+            elif isinstance(x, str):
+                paths.append(os.path.join(self._root_dir, x))
+            else:
+                self._log.error('Arg must be an int or a string: {}'.format(x))
+                raise ValueError('Arg must be an int or a string: {}'.format(x))
+        # Get to work.
+        elements = []
+        def store_elements(e):
+            elements.append(e)
+
+        pool = Pool(_MAX_THREADS)
+        result = pool.map_async(get_dir_elements, paths, callback=store_elements)
+        result.wait()
+        if not result.successful():
+            self._log.error('get_elements not successful')
+            return []
         else:
-            self._log.error('Arg must be an int or a string: {}'.format(id))
-            raise ValueError('Arg must be an int or a string: {}'.format(id))
-        return dir_elements(path, recache, filtering)
+            return elements[0]
+
+        # with ThreadPool(processes=4) as pool:
+        #     results = pool.map(lambda p: dir_elements(p, recache, filtering), paths)
+        #     pool.close()
+        #     pool.join()
+        #     return results
+
+        # with ThreadPoolExecutor(max_workers=_MAX_THREADS) as ex:
+        #     for output in ex.map(lambda p: dir_elements(p, recache, filtering),
+        #                          iter(paths)):
+        #         elements.append(output)
+
 
 
     def get_words(self, id, filetype='all', recache=False, filtering='normal'):
@@ -206,6 +240,11 @@ class ExtractorServer(object):
                          .format(id, recache))
         elements = self.get_elements(id, recache, filtering='normal')
         return all_identifiers(elements, recache)
+
+
+def get_dir_elements(path):
+    return dir_elements(path, recache=True)
+
 
 
 # Start the user interface.

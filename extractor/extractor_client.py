@@ -83,10 +83,13 @@ class Extractor(object):
             return ''
 
 
-    def get_elements(self, id, recache=False, filtering='normal'):
-        self._sanity_check_id(id)
+    def get_elements(self, id_list, recache=False, filtering='normal'):
+        # Accept single id's too.
+        if not isinstance(id_list, list):
+            id_list = list(id_list)
+        self._sanity_check_id(id_list[0])
         try:
-            return self._extractor.get_elements(id, recache, filtering)
+            return self._extractor.get_elements(id_list, recache, filtering)
         except Pyro4.errors.ConnectionClosedError:
             # Network connection lost.
             self._log.error('Network connection lost: {}'.format(err))

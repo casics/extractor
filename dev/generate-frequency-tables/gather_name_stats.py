@@ -129,16 +129,12 @@ def safe_simple_split(identifier):
 
 def gather_name_frequencies(repo_ids, lang, uri, key, recache, log):
     extractor = Extractor(uri, key)
+    results = extractor.get_elements(repo_ids, recache=recache, filtering='minimal')
+    if not results:
+        log.warn('*** Nothing returned by extractor')
+        return []
     names = defaultdict(int)
-    for id in repo_ids:
-        if not id:
-            log.info('Ignoring blank line')
-            continue
-        log.info('Getting elements for {}'.format(id))
-        elements = extractor.get_elements(id, recache=recache, filtering='minimal')
-        if not elements:
-            log.warn('*** Nothing returned by extractor for {}'.format(id))
-            continue
+    for elements in results:
         names_in_repo = unique_names(elements['elements'])
         if names_in_repo:
             # Take every symbol and do a safe split, and merge the result.
@@ -155,7 +151,7 @@ def gather_name_frequencies(repo_ids, lang, uri, key, recache, log):
                 if length >= _min_name_length and length <= _max_name_length:
                     names[name] += 1
         else:
-            log.warn('*** Empty list of names from {}'.format(id))
+            log.warn('*** Empty list of names from {}'.format(elements['full_path']))
     return sorted(names.items(), key=operator.itemgetter(1), reverse=True)
 
 
@@ -165,6 +161,8 @@ def unique_names(elements):
 
 
 def unique_names_recursive(elements):
+    if not elements:
+        return []
     names = []
     if 'type' in elements and elements['type'] == 'dir':
         # This will be a list of dictionaries.
