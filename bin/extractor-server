@@ -46,7 +46,8 @@ _DEFAULT_REPO_ROOT = '/srv/repositories'
 _DEFAULT_LOGFILE   = 'extractor.log'
 '''Default log file.'''
 
-_MAX_THREADS = 10
+_DEFAULT_MAX_THREADS = 10
+'''Maximum number of threads to use when running extractors.'''
 
 
 # Main body.
@@ -163,6 +164,7 @@ class ExtractorServer(object):
         self._root_dir = repo_root
         self._orig_dir = os.path.abspath(os.getcwd())
         self._log      = logger
+        self._threads  = _DEFAULT_MAX_THREADS
 
 
     def _log_action(self, msg):
@@ -172,6 +174,16 @@ class ExtractorServer(object):
     def shutdown(self):
         self._log_action('shutdown')
         self._daemon.shutdown()
+
+
+    def set_max_threads(self, num):
+        self._log_action('set_max_threads({})'.format(num))
+        if isinstance(num, int):
+            self._threads = num
+            return True
+        else:
+            self._log.error('ignoring noninteger argument to set_max_threads()')
+            return False
 
 
     def get_status(self):
@@ -187,9 +199,14 @@ class ExtractorServer(object):
 
 
     def get_elements(self, id_list, recache=False, filtering='normal'):
-        self._log_action('get_elements() called with {} item{}'
-                         .format(len(id_list), 's' if len(id_list) > 1 else ''))
-        # Generate full paths for each thing we're given.
+        if len(id_list) < 1000:
+            self._log_action('get_elements() called with {}'.format(id_list))
+        else:
+            self._log_action('get_elements() called with {} item{}'
+                             .format(len(id_list), 's' if len(id_list) > 1 else ''))
+
+        # Generate full paths for each thing we're given and simultaneously
+        # check that the input contents are valid.
         paths = []
         for x in id_list:
             if x.strip() is '':
@@ -201,31 +218,21 @@ class ExtractorServer(object):
             else:
                 self._log.error('Arg must be an int or a string: {}'.format(x))
                 raise ValueError('Arg must be an int or a string: {}'.format(x))
-        # Get to work.
+
+        # Start the real work.
         elements = []
+
         def store_elements(e):
             elements.append(e)
 
-        pool = Pool(_MAX_THREADS)
-        result = pool.map_async(get_dir_elements, paths, callback=store_elements)
-        result.wait()
-        if not result.successful():
-            self._log.error('get_elements not successful')
-            return []
-        else:
-            return elements[0]
+        pool = Pool(self._threads)
+        for path in paths:
+            pool.apply_async(dir_elements, args=(path, recache, filtering),
+                             callback=store_elements)
+        pool.close()
+        pool.join()
 
-        # with ThreadPool(processes=4) as pool:
-        #     results = pool.map(lambda p: dir_elements(p, recache, filtering), paths)
-        #     pool.close()
-        #     pool.join()
-        #     return results
-
-        # with ThreadPoolExecutor(max_workers=_MAX_THREADS) as ex:
-        #     for output in ex.map(lambda p: dir_elements(p, recache, filtering),
-        #                          iter(paths)):
-        #         elements.append(output)
-
+        return elements
 
 
     def get_words(self, id, filetype='all', recache=False, filtering='normal'):
@@ -240,11 +247,6 @@ class ExtractorServer(object):
                          .format(id, recache))
         elements = self.get_elements(id, recache, filtering='normal')
         return all_identifiers(elements, recache)
-
-
-def get_dir_elements(path):
-    return dir_elements(path, recache=True)
-
 
 
 # Start the user interface.
