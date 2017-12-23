@@ -127,8 +127,12 @@ def safe_simple_split(identifier):
 # .............................................................................
 # Basic idea
 
-def gather_name_frequencies(repo_ids, lang, uri, key, recache, log):
+def gather_name_frequencies(repo_ids, lang, uri, key, recache, log, threads):
     extractor = Extractor(uri, key)
+
+    log.info('setting number of threads to {}'.format(threads))
+    extractor.set_max_threads(threads)
+
     results = extractor.get_elements(repo_ids, recache=recache, filtering='minimal')
     if not results:
         log.warn('*** Nothing returned by extractor')
@@ -187,19 +191,21 @@ def unique_names_recursive(elements):
 # Argument annotations are: (help, kind, abbrev, type, choices, metavar)
 # Plac automatically adds a -h argument for help, so no need to do it here.
 @plac.annotations(
-    uri     = ('URI to connect to',    'option', 'u'),
-    key     = ('crypto key',           'option', 'k'),
-    recache = ('invalidate the cache', 'flag',   'r'),
+    uri     = ('URI to connect to',     'option', 'u'),
+    key     = ('crypto key',            'option', 'k'),
+    recache = ('invalidate the cache',  'flag',   'r'),
+    threads = ('max number of threads', 'option', 't'),
     file    = 'file of repo identifiers',
 )
 
-def run(key=None, uri=None, recache=False, *file):
+def run(key=None, uri=None, recache=False, threads=5, *file):
     '''Test gather_word_stats.py.'''
     if len(file) < 1:
         raise SystemExit('Need a file as argument')
     log = Logger(sys.argv[0], console=True).get_log()
     log.set_level('debug')
     filename = file[0]
+    threads = int(threads)
     if not os.path.exists(filename):
         raise ValueError('File {} not found'.format(filename))
 
@@ -208,7 +214,7 @@ def run(key=None, uri=None, recache=False, *file):
         id_list = f.read().splitlines()
 
     log.info('Gathering name frequencies')
-    freq = gather_name_frequencies(id_list, 'Python', uri, key, recache, log)
+    freq = gather_name_frequencies(id_list, 'Python', uri, key, recache, log, threads)
     print(tabulate_frequencies(freq))
 
 

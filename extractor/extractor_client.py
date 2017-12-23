@@ -64,6 +64,12 @@ class Extractor(object):
             raise ValueError('Arg must be an int or a string: {}'.format(id))
 
 
+    def set_max_threads(self, num):
+        if not isinstance(num, int):
+            raise ValueError('Arg must be an int: {}'.format(num))
+        return self._extractor.set_max_threads(num)
+
+
     def get_status(self):
         return self._extractor.get_status()
 
