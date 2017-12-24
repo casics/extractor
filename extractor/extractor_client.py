@@ -83,7 +83,7 @@ class Extractor(object):
             self._log.error('Network connection lost: {}'.format(err))
             return []
         except Exception as err:
-            self._log.error('Exception: {}'.format(err))
+            self._log.error('get_repo_path() exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
             return ''
@@ -101,7 +101,7 @@ class Extractor(object):
             self._log.error('Network connection lost: {}'.format(err))
             return []
         except Exception as err:
-            self._log.error('Exception: {}'.format(err))
+            self._log.error('get_elements() exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
             return []
@@ -116,7 +116,7 @@ class Extractor(object):
             self._log.error('Network connection lost: {}'.format(err))
             return []
         except Exception as err:
-            self._log.error('Exception: {}'.format(err))
+            self._log.error('get_words() exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
             return []
@@ -131,7 +131,7 @@ class Extractor(object):
             self._log.error('Network connection lost: {}'.format(err))
             return []
         except Exception as err:
-            self._log.error('Exception: {}'.format(err))
+            self._log.error('get_identifiers() exception: {}'.format(err))
             self._log.error('------ Pyro traceback ------')
             self._log.error(''.join(Pyro4.util.getPyroTraceback()))
             return []
