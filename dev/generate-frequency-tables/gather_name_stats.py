@@ -52,6 +52,7 @@ from   collections import defaultdict
 from   datetime import datetime
 import IPython
 import logging
+from   multiprocessing import Pool
 import operator
 import os
 import plac
@@ -72,6 +73,7 @@ except:
 
 from extractor.extractor_client import *
 from common.data_helpers import flatten
+from common.path import *
 
 
 # Global constants
@@ -127,18 +129,66 @@ def safe_simple_split(identifier):
 # .............................................................................
 # Basic idea
 
-def gather_name_frequencies(repo_ids, lang, uri, key, recache, log, threads):
+def gather_name_frequencies_local(id_list, lang, root, recache, log, threads):
+    log.info('setting number of threads to {}'.format(threads))
+
+    # Generate full paths for each thing we're given and simultaneously
+    # check that the input contents are valid.
+    paths = []
+    for x in id_list:
+        if x.strip() is '':
+            continue
+        if isinstance(x, int) or (isinstance(x, str) and x.isdigit()):
+            paths.append(generate_path(root, x))
+        elif isinstance(x, str):
+            paths.append(os.path.join(root, x))
+        else:
+            log.error('Arg must be an int or a string: {}'.format(x))
+            raise ValueError('Arg must be an int or a string: {}'.format(x))
+
+    elements = []
+
+    def store_elements(e):
+        elements.append(e)
+
+    log.info('Getting elements from local file system')
+    pool = Pool(threads)
+    for path in paths:
+        pool.apply_async(dir_elements, args=(path, recache, 'minimal'),
+                         callback=store_elements)
+    pool.close()
+    pool.join()
+
+    log.info('Tallying frequencies')
+    frequency_dict = name_frequencies(elements, log)
+
+    log.info('Finished.')
+    return frequency_dict
+
+
+def gather_name_frequencies_remote(repo_ids, lang, uri, key, recache, log, threads):
+    log.info('Starting ...')
     extractor = Extractor(uri, key)
 
-    log.info('setting number of threads to {}'.format(threads))
+    log.info('Setting number of threads to {}'.format(threads))
     extractor.set_max_threads(threads)
 
+    log.info('Getting elements from extractor-server')
     results = extractor.get_elements(repo_ids, recache=recache, filtering='minimal')
     if not results:
         log.warn('*** Nothing returned by extractor')
         return []
+
+    log.info('Tallying frequencies')
+    frequency_dict = name_frequencies(results, log)
+
+    log.info('Finished.')
+    return frequency_dict
+
+
+def name_frequencies(elements_list, log):
     names = defaultdict(int)
-    for elements in results:
+    for elements in elements_list:
         names_in_repo = unique_names(elements['elements'])
         if names_in_repo:
             # Take every symbol and do a safe split, and merge the result.
@@ -191,30 +241,40 @@ def unique_names_recursive(elements):
 # Argument annotations are: (help, kind, abbrev, type, choices, metavar)
 # Plac automatically adds a -h argument for help, so no need to do it here.
 @plac.annotations(
-    uri     = ('URI to connect to',     'option', 'u'),
-    key     = ('crypto key',            'option', 'k'),
-    recache = ('invalidate the cache',  'flag',   'r'),
-    threads = ('max number of threads', 'option', 't'),
+    uri     = ('URI to connect to',        'option', 'u'),
+    key     = ('crypto key',               'option', 'k'),
+    root    = ('root of repository files', 'option', 'r'),
+    threads = ('max number of threads',    'option', 't'),
+    recache = ('invalidate the cache',     'flag',   'x'),
     file    = 'file of repo identifiers',
 )
 
-def run(key=None, uri=None, recache=False, threads=5, *file):
+def run(key=None, uri=None, root=None, recache=False, threads=5, *file):
     '''Test gather_word_stats.py.'''
     if len(file) < 1:
         raise SystemExit('Need a file as argument')
+    if uri and root:
+        raise SystemExit('Cannot use -u and -r simultaneously')
+    if uri and not key:
+        raise SystemExit('Need provide a crypto key with -u')
+
     log = Logger(sys.argv[0], console=True).get_log()
     log.set_level('debug')
     filename = file[0]
     threads = int(threads)
     if not os.path.exists(filename):
         raise ValueError('File {} not found'.format(filename))
-
     log.info('Reading identifiers from {}'.format(filename))
     with open(filename) as f:
         id_list = f.read().splitlines()
 
-    log.info('Gathering name frequencies')
-    freq = gather_name_frequencies(id_list, 'Python', uri, key, recache, log, threads)
+    if uri:
+        log.info('Using remote server at {}'.format(uri))
+        freq = gather_name_frequencies_remote(id_list, 'Python', uri, key, recache, log, threads)
+    else:
+        log.info('Using local files at {}'.format(root))
+        freq = gather_name_frequencies_local(id_list, 'Python', root, recache, log, threads)
+
     print(tabulate_frequencies(freq))
 
 
