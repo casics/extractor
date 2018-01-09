@@ -95,7 +95,7 @@ _max_name_length = 30
 # state to install.  (A chicken-and-egg problem.)  These functions are short
 # enough that I decided to copy-paste them here. -- MH
 
-_hard_split_chars = '~_.:0123456789'
+_hard_split_chars = '$~_.:'
 _hard_splitter    = str.maketrans(_hard_split_chars, ' '*len(_hard_split_chars))
 _two_capitals     = re.compile(r'[A-Z][A-Z]')
 _camel_case       = re.compile(r'((?<=[a-z])[A-Z])')
