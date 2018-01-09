@@ -47,6 +47,7 @@ Software Inventory Creation System.  For more, visit http://casics.org.
 
 '''
 
+from   blist import blist
 import code
 from   collections import defaultdict
 from   datetime import datetime
@@ -134,7 +135,7 @@ def gather_name_frequencies_local(id_list, lang, root, recache, log, threads):
 
     # Generate full paths for each thing we're given and simultaneously
     # check that the input contents are valid.
-    paths = []
+    paths = blist()
     for x in id_list:
         if x.strip() is '':
             continue
@@ -146,7 +147,7 @@ def gather_name_frequencies_local(id_list, lang, root, recache, log, threads):
             log.error('Arg must be an int or a string: {}'.format(x))
             raise ValueError('Arg must be an int or a string: {}'.format(x))
 
-    elements = []
+    elements = blist()
 
     def store_elements(e):
         elements.append(e)
@@ -177,7 +178,7 @@ def gather_name_frequencies_remote(repo_ids, lang, uri, key, recache, log, threa
     results = extractor.get_elements(repo_ids, recache=recache, filtering='minimal')
     if not results:
         log.warn('*** Nothing returned by extractor')
-        return []
+        return blist()
 
     log.info('Tallying frequencies')
     frequency_dict = name_frequencies(results, log)
@@ -192,7 +193,7 @@ def name_frequencies(elements_list, log):
         names_in_repo = unique_names(elements['elements'])
         if names_in_repo:
             # Take every symbol and do a safe split, and merge the result.
-            expanded = []
+            expanded = blist()
             for name in names_in_repo:
                 if not name:
                     continue
