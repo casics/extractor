@@ -110,20 +110,19 @@ def safe_camelcase_split(identifier):
         return [identifier]
     return re.sub(_camel_case, r' \1', identifier).split()
 
-def safe_simple_split(identifier):
-    '''Split identifiers by hard delimiters such as underscores, digits, and
-    forward camel case only, i.e., lower-to-upper case transitions.  This
-    means it will split fooBarBaz into 'foo', 'Bar' and 'Baz', and foo2bar
-    into 'foo' and 'bar, but it won't change SQLlite or similar identifiers.
-    Does not split identifies that have multiple adjacent uppercase
-    letters anywhere in them, because doing so is risky if the uppercase
-    letters are not an acronym.  Example: aFastNDecoder -> ['aFastNDecoder'].
-    Contrast this to simple_split('aFastNDecoder'), which will produce
-    ['a', 'Fast', 'NDecoder'] even though "NDecoder" may be more properly split
-    as 'N' 'Decoder'.
+def simple_split(identifier):
+    '''Split identifiers by hard delimiters such as underscores, and forward
+    camel case only, i.e., lower-to-upper case transitions.  This means it
+    will split fooBarBaz into 'foo', 'Bar' and 'Baz', and foo2bar into 'foo'
+    and 'bar, but it won't change SQLlite or similar identifiers.  Unlike
+    safe_simple_split(), this will split identifiers that may have sequences
+    of all upper-case letters if there is a lower-to-upper case transition
+    somewhere.  Example: simple_split('aFastNDecoder') will produce ['a',
+    'Fast', 'NDecoder'] even though "NDecoder" may be more correctly split as
+    'N' 'Decoder'.  It preserves digits and does not treat them specially.
     '''
-    parts = str.translate(identifier, _hard_splitter).split(' ')
-    return list(flatten(safe_camelcase_split(token) for token in parts))
+    parts = str.translate(identifier, _hard_splitter).split()
+    return list(flatten(re.sub(_camel_case, r' \1', token).split() for token in parts))
 
 
 # Main code
@@ -197,7 +196,7 @@ def name_frequencies(elements_list, log):
             for name in names_in_repo:
                 if not name:
                     continue
-                expanded += safe_simple_split(name)
+                expanded += simple_split(name)
             # Count up the number of times each symbol component appears.
             for name in expanded:
                 # Normalize to pure ASCII.
